@@ -44,7 +44,9 @@ export default function RegisterPage() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-[#f7f6f3] px-4 py-10">
       <div className="w-full max-w-md rounded-2xl border bg-white p-6 shadow-sm">
-        <h1 className="text-2xl font-semibold tracking-tight">{APP_NAME}</h1>
+        <span className="mb-3 inline-flex size-16 overflow-hidden">
+          <img src="/logo.jpg" alt={APP_NAME} className="size-16 scale-[1.7] object-cover" />
+        </span>
         <p className="mb-6 text-muted-foreground">Создание аккаунта</p>
         <form onSubmit={(event) => void submit(event)} className="space-y-4">
           <div className="grid gap-2">

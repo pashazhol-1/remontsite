@@ -48,19 +48,13 @@ export default function LoginPage() {
     }
   }
 
-  async function google() {
-    try {
-      await repo.signInWithGoogle();
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Google недоступен");
-    }
-  }
-
   return (
     <div className="flex min-h-screen items-center justify-center bg-[#f7f6f3] px-4 py-10">
       <div className="w-full max-w-md rounded-2xl border bg-white p-6 shadow-sm">
         <div className="mb-6">
-          <h1 className="text-2xl font-semibold tracking-tight">{APP_NAME}</h1>
+          <span className="mb-3 inline-flex size-16 overflow-hidden">
+            <img src="/logo.jpg" alt={APP_NAME} className="size-16 scale-[1.7] object-cover" />
+          </span>
           <p className="text-muted-foreground">{APP_TAGLINE}</p>
         </div>
 
@@ -121,11 +115,7 @@ export default function LoginPage() {
           >
             Сбросить демо-данные
           </Button>
-        ) : (
-          <Button type="button" variant="outline" className="mt-3 h-11 w-full" onClick={() => void google()}>
-            Войти через Google
-          </Button>
-        )}
+        ) : null}
 
         <p className="mt-4 text-center text-sm text-muted-foreground">
           Нет аккаунта?{" "}
@@ -133,11 +123,11 @@ export default function LoginPage() {
             Зарегистрироваться
           </Link>
         </p>
-        <p className="mt-3 text-xs leading-5 text-muted-foreground">
-          {isDemo
-            ? "Демо-логины: zakazchik и stroitel, пароль demo. Новый человек на странице регистрации станет строителем."
-            : "Первый зарегистрированный человек становится заказчиком. Все следующие — строителями."}
-        </p>
+        {isDemo ? (
+          <p className="mt-3 text-xs leading-5 text-muted-foreground">
+            Демо-логины: zakazchik и stroitel, пароль demo. Новый человек на странице регистрации станет строителем.
+          </p>
+        ) : null}
       </div>
     </div>
   );

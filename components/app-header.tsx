@@ -40,8 +40,8 @@ export function AppHeader() {
   return (
     <header className="sticky top-0 z-20 border-b bg-background/90 backdrop-blur">
       <div className="mx-auto flex max-w-6xl items-center gap-3 px-4 py-3">
-        <Link href={profile?.role === "admin" ? "/admin" : "/builder"} className="shrink-0 font-semibold tracking-tight">
-          {APP_NAME}
+        <Link href={profile?.role === "admin" ? "/admin" : "/builder"} className="inline-flex size-10 shrink-0 overflow-hidden" aria-label={APP_NAME}>
+          <img src="/logo.jpg" alt="" className="size-10 scale-[1.7] object-cover" />
         </Link>
         <nav className="hidden items-center gap-1 md:flex">
           {links.map((link) => {
@@ -65,6 +65,11 @@ export function AppHeader() {
               Демо
             </span>
           ) : null}
+          <img
+            src="/avatar.jpg"
+            alt=""
+            className="size-9 rounded-full object-cover"
+          />
           <div className="hidden text-right sm:block">
             <div className="text-sm font-medium">{profile?.name}</div>
             <div className="text-xs text-muted-foreground">
