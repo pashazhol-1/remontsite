@@ -1,36 +1,106 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Учёт расходов на ремонт
 
-## Getting Started
+Простое веб-приложение, в котором строитель отправляет чеки, а заказчик их смотрит.
 
-First, run the development server:
+Сейчас готовы **этапы 1–3**: вход, роли, чеки, чтение фото, перевод голоса в текст, оплата и сводки. Переписка по чеку — следующий этап.
+
+Пока включён **демо-режим**. База Supabase и платные сервисы не нужны.
+
+## Что нужно на компьютере
+
+1. [Node.js](https://nodejs.org) версии 20 или новее. При установке оставьте галочки по умолчанию.
+2. Этот проект, открытый в Cursor.
+
+## Как запустить
+
+В терминале Cursor, в папке проекта:
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Откройте в браузере [http://localhost:3000](http://localhost:3000).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Остановить сервер: в том же терминале нажмите `Ctrl+C`.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Как войти в демо
 
-## Learn More
+На странице входа две кнопки:
 
-To learn more about Next.js, take a look at the following resources:
+| Кнопка | Кто это | Логин | Пароль |
+| --- | --- | --- | --- |
+| Я заказчик | видит все чеки и виды работ | `zakazchik` | `demo` |
+| Я строитель | отправляет чеки | `stroitel` | `demo` |
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Строитель: «Добавить чек» → фото → вид работ → комментарий → «Отправить чек». В демо есть кнопка «Подставить пример фото», если нет настоящего снимка.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Заказчик: список всех чеков с поиском, фильтрами и сортировкой, карточка чека, кнопка «Оплатил», страницы «Аналитика» и «Виды работ». Строитель эти сводки не видит.
 
-## Deploy on Vercel
+Новый аккаунт создаётся на странице «Зарегистрироваться». Если заказчик уже есть, новый человек становится строителем. Пароль — не короче 6 символов.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Кнопка «Сбросить демо-данные» на входе возвращает тестовые чеки и категории. Ваши добавленные в демо чеки при этом пропадут.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Данные демо хранятся в браузере, не на сервере.
+
+## Распознавание чека и голоса
+
+После отправки строителя приложение читает фото: магазин, дату, номер, товары, цены и итог. Вид работ, который выбрал строитель, модель не меняет.
+
+Если сумма позиций не сходится с итогом или модель не уверена, чек остаётся «На проверке». Если чтение уверенное и суммы сходятся, статус становится «Не оплачено».
+
+Заказчик на карточке чека может поправить любую строку, добавить или удалить товар и нажать «Прочитать фото снова».
+
+Голос переводится в текст прямо в браузере, пока идёт запись. Оригинал можно прослушать. Удобнее всего Chrome. Текст речи не заменяет фотографию.
+
+Пока в `.env.local` нет ключа, вместо настоящего чтения подставляется учебный пример. На чеке об этом написано жёлтым. Это бесплатно и нужно, чтобы можно было проверить экраны.
+
+### Как включить настоящее чтение фото
+
+Платить не нужно, если пользоваться бесплатной моделью.
+
+1. Зарегистрируйтесь на [openrouter.ai](https://openrouter.ai).
+2. Откройте Keys и создайте ключ.
+3. Впишите его в `.env.local`:
+
+```bash
+OPENROUTER_API_KEY=сюда_ключ
+OPENROUTER_MODEL=openrouter/free
+```
+
+4. Остановите сервер (`Ctrl+C`) и снова выполните `npm run dev`.
+
+Ключ остаётся только на сервере. Если бесплатная модель занята, в `OPENROUTER_MODEL` можно поставить другую бесплатную модель с поддержкой картинок, например `google/gemma-4-26b-a4b-it:free`.
+
+## Что сознательно ещё не сделано
+
+- Вопросы по чеку, уведомления и экран истории изменений.
+
+В демо уже лежат примеры чеков со статусами «Оплачено», «Не оплачено» и «На проверке». После чтения фото уверенный чек становится «Не оплачено», неуверенный остаётся «На проверке». Заказчик может удалить чек из списка или из карточки. Строитель не может удалить чек после отправки и не может менять оплату.
+
+## Когда понадобится настоящая база
+
+Это бесплатный [Supabase](https://supabase.com). Подключать его нужно, когда демо уже проверено и данные должны сохраняться не только в одном браузере.
+
+1. Зарегистрируйтесь на supabase.com.
+2. Нажмите New project и дождитесь, пока проект создастся.
+3. Слева откройте SQL Editor → New query.
+4. Скопируйте весь файл `supabase/schema.sql` из этого проекта, вставьте в редактор и нажмите Run.
+5. Откройте Project Settings → API. Скопируйте Project URL и anon public key.
+6. Впишите их в файл `.env.local`:
+
+```bash
+NEXT_PUBLIC_DEMO_MODE=false
+NEXT_PUBLIC_APP_URL=http://localhost:3000
+NEXT_PUBLIC_SUPABASE_URL=сюда_url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=сюда_anon_key
+```
+
+7. В Supabase: Authentication → Providers → Email. Для проверки удобно выключить Confirm email, иначе вход начнёт работать только после письма.
+8. Перезапустите `npm run dev`. Первый зарегистрированный человек станет заказчиком, остальные — строителями.
+
+Файл `.env.local` не нужно никому отправлять: в нём секреты. Пример без секретов лежит в `.env.example`.
+
+Google-вход можно включить позже в Supabase → Authentication → Providers → Google. В демо-режиме эта кнопка скрыта.
+
+Фото и голосовые файлы в Supabase лежат в закрытых хранилищах `receipt-photos` и `receipt-audio`. Прямой публичной ссылки на них нет.
