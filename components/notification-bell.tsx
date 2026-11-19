@@ -33,7 +33,7 @@ export function NotificationBell() {
     };
   }, [load]);
 
-  const unreadItems = items.filter((item) => !item.readAt);
+  const unreadItems = items.filter((item) => !item.readAt && item.kind !== "payment_confirmed");
   const unread = unreadItems.length;
 
   async function openReceipt(item: AppNotification) {

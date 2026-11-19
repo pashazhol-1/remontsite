@@ -327,7 +327,7 @@ export function createDemoRepository(): AppRepository {
         if (kind === "payment_requested" || kind === "payment_cancelled") {
           notifyUsers([updated.userId], kind, updated);
         }
-        if (kind === "payment_confirmed" || kind === "payment_rejected") {
+        if (kind === "payment_rejected") {
           const users = readJson<StoredUser[]>(KEYS.users, demoUsers);
           notifyUsers(users.filter((user) => user.role === "admin").map((user) => user.id), kind, updated);
         }

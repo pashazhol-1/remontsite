@@ -443,7 +443,7 @@ export function createSupabaseRepository(): AppRepository {
       if (!updated) throw new Error("Чек не найден");
       if (patch.status && patch.status !== current.status) {
         const kind = notificationKindForChange(session.role, current.status, patch.status);
-        if (kind) await notifyReceiptEvent(client, id, kind);
+        if (kind && kind !== "payment_confirmed") await notifyReceiptEvent(client, id, kind);
         if (current.status === "awaiting_confirmation") {
           await client
             .from("notifications")
@@ -462,7 +462,9 @@ export function createSupabaseRepository(): AppRepository {
         .select("id, user_id, receipt_id, kind, title, body, read_at, created_at")
         .order("created_at", { ascending: false });
       if (error) return [];
-      return (data ?? []).map((row) => ({
+      return (data ?? [])
+        .filter((row) => row.kind !== "payment_confirmed")
+        .map((row) => ({
         id: row.id as string,
         userId: row.user_id as string,
         receiptId: row.receipt_id as string,
