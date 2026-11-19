@@ -1,6 +1,7 @@
 "use client";
 
 import { useApp } from "@/components/app-provider";
+import { NotificationBell } from "@/components/notification-bell";
 import { Button } from "@/components/ui/button";
 import { APP_NAME } from "@/lib/config";
 import { roleLabel } from "@/lib/format";
@@ -65,6 +66,7 @@ export function AppHeader() {
               Демо
             </span>
           ) : null}
+          <NotificationBell />
           <img
             src="/avatar.jpg"
             alt=""

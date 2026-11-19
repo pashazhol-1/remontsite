@@ -1,4 +1,5 @@
 import type {
+  AppNotification,
   CategoryInput,
   CreateReceiptInput,
   Profile,
@@ -24,4 +25,7 @@ export type AppRepository = {
   createReceipt: (input: CreateReceiptInput) => Promise<Receipt>;
   updateReceipt: (id: string, patch: ReceiptPatch) => Promise<Receipt>;
   deleteReceipt: (id: string) => Promise<void>;
+  listNotifications: () => Promise<AppNotification[]>;
+  markNotificationRead: (id: string) => Promise<void>;
+  markAllNotificationsRead: () => Promise<void>;
 };

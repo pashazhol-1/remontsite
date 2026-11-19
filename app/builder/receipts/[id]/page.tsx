@@ -3,11 +3,12 @@
 import { useApp } from "@/components/app-provider";
 import { ReceiptDetail } from "@/components/receipt-detail";
 import type { Receipt, WorkCategory } from "@/types";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 export default function BuilderReceiptPage() {
   const params = useParams<{ id: string }>();
+  const router = useRouter();
   const { repo } = useApp();
   const [receipt, setReceipt] = useState<Receipt | null>(null);
   const [categories, setCategories] = useState<WorkCategory[]>([]);
@@ -26,5 +27,12 @@ export default function BuilderReceiptPage() {
   if (loading) return <p className="text-muted-foreground">Загрузка...</p>;
   if (!receipt) return <p>Чек не найден</p>;
 
-  return <ReceiptDetail receipt={receipt} categories={categories} onUpdated={setReceipt} />;
+  return (
+    <ReceiptDetail
+      receipt={receipt}
+      categories={categories}
+      onUpdated={setReceipt}
+      onDeleted={() => router.replace("/builder")}
+    />
+  );
 }

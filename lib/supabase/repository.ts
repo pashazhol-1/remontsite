@@ -2,8 +2,9 @@ import { statusAfterRecognition } from "@/lib/ai/assess";
 import { recognizeReceiptPhotos } from "@/lib/ai/client";
 import { DEFAULT_CURRENCY, loginFromEmail, toAuthEmail } from "@/lib/config";
 import type { AppRepository } from "@/lib/data/repository";
+import { assertStatusChange, builderMayDeleteReceipt, notificationKindForChange } from "@/lib/payments";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
-import type { Profile, Receipt, ReceiptImage, ReceiptItem, UserRole, WorkCategory } from "@/types";
+import type { AppNotification, Profile, Receipt, ReceiptImage, ReceiptItem, UserRole, WorkCategory } from "@/types";
 import type { User } from "@supabase/supabase-js";
 
 type ProfileRow = {
@@ -378,11 +379,18 @@ export function createSupabaseRepository(): AppRepository {
 
       const created = await this.getReceipt(receipt.id);
       if (!created) throw new Error("Чек сохранён, но не удалось его прочитать");
+      await notifyReceiptEvent(client, created.id, "receipt_created");
       return created;
     },
     async updateReceipt(id, patch) {
       const session = await this.getSession();
-      const current = patch.status ? await this.getReceipt(id) : null;
+      if (!session) throw new Error("Нужно войти в систему");
+      const current = await this.getReceipt(id);
+      if (!current) throw new Error("Чек не найден");
+      if (session.role !== "admin" && Object.keys(patch).some((key) => key !== "status")) {
+        throw new Error("Изменять чек может только заказчик");
+      }
+      assertStatusChange(session.role, session.id, current, patch.status);
       const changes: Record<string, unknown> = { updated_at: new Date().toISOString() };
       if ("categoryId" in patch) changes.category_id = patch.categoryId;
       if ("storeName" in patch) changes.store_name = patch.storeName;
@@ -394,7 +402,7 @@ export function createSupabaseRepository(): AppRepository {
       if ("audioTranscription" in patch) changes.audio_transcription = patch.audioTranscription;
       if ("status" in patch) changes.status = patch.status;
       const { error } = await client.from("receipts").update(changes).eq("id", id);
-      if (error) throw error;
+      if (error) throw new Error(explainReceiptWriteError(error.message));
       if (current && patch.status && current.status !== patch.status && session) {
         const { error: historyError } = await client.from("payment_history").insert({
           receipt_id: id,
@@ -433,15 +441,62 @@ export function createSupabaseRepository(): AppRepository {
       }
       const updated = await this.getReceipt(id);
       if (!updated) throw new Error("Чек не найден");
+      if (patch.status && patch.status !== current.status) {
+        const kind = notificationKindForChange(session.role, current.status, patch.status);
+        if (kind) await notifyReceiptEvent(client, id, kind);
+        if (current.status === "awaiting_confirmation") {
+          await client
+            .from("notifications")
+            .update({ read_at: new Date().toISOString() })
+            .eq("receipt_id", id)
+            .eq("kind", "payment_requested")
+            .is("read_at", null);
+        }
+      }
       return updated;
+    },
+    async listNotifications() {
+      await closeStalePaymentRequests(client);
+      const { data, error } = await client
+        .from("notifications")
+        .select("id, user_id, receipt_id, kind, title, body, read_at, created_at")
+        .order("created_at", { ascending: false });
+      if (error) return [];
+      return (data ?? []).map((row) => ({
+        id: row.id as string,
+        userId: row.user_id as string,
+        receiptId: row.receipt_id as string,
+        kind: row.kind as AppNotification["kind"],
+        title: row.title as string,
+        body: row.body as string,
+        readAt: (row.read_at as string | null) ?? null,
+        createdAt: row.created_at as string,
+      }));
+    },
+    async markNotificationRead(id) {
+      const { error } = await client
+        .from("notifications")
+        .update({ read_at: new Date().toISOString() })
+        .eq("id", id);
+      if (error) throw new Error(error.message);
+    },
+    async markAllNotificationsRead() {
+      const { error } = await client
+        .from("notifications")
+        .update({ read_at: new Date().toISOString() })
+        .is("read_at", null);
+      if (error) throw new Error(error.message);
     },
     async deleteReceipt(id) {
       const session = await this.getSession();
-      if (session?.role !== "admin") {
-        throw new Error("Удалять чек может только заказчик");
-      }
+      if (!session) throw new Error("Нужно войти в систему");
       const receipt = await this.getReceipt(id);
       if (!receipt) throw new Error("Чек не найден");
+      if (session.role !== "admin") {
+        if (session.id !== receipt.userId || !builderMayDeleteReceipt(receipt.status)) {
+          throw new Error("Этот чек уже нельзя удалить: заказчик отметил оплату");
+        }
+      }
       const folder = `${receipt.userId}/${receipt.id}`;
       await removeStoredFiles(client, "receipt-photos", folder);
       await removeStoredFiles(client, "receipt-audio", folder);
@@ -450,13 +505,57 @@ export function createSupabaseRepository(): AppRepository {
         const message = error.message || "";
         if (message.toLowerCase().includes("row-level security") || error.code === "42501") {
           throw new Error(
-            "База ещё не разрешает удаление. В Supabase откройте SQL Editor и выполните правило receipts_delete_admin из файла supabase/schema.sql.",
+            "База ещё не разрешает удаление. В Supabase откройте SQL Editor и ещё раз выполните файл supabase/payment-confirmation.sql.",
           );
         }
         throw new Error(message || "Не удалось удалить чек");
       }
     },
   };
+}
+
+async function closeStalePaymentRequests(client: ReturnType<typeof createSupabaseBrowserClient>) {
+  const { data: requests } = await client
+    .from("notifications")
+    .select("id, receipt_id")
+    .eq("kind", "payment_requested")
+    .is("read_at", null);
+  const rows = (requests ?? []) as Array<{ id: string; receipt_id: string }>;
+  if (rows.length === 0) return;
+  const receiptIds = [...new Set(rows.map((row) => row.receipt_id))];
+  const { data: receipts } = await client.from("receipts").select("id, status").in("id", receiptIds);
+  const stillWaiting = new Set(
+    ((receipts ?? []) as Array<{ id: string; status: string }>)
+      .filter((receipt) => receipt.status === "awaiting_confirmation")
+      .map((receipt) => receipt.id),
+  );
+  const staleIds = rows.filter((row) => !stillWaiting.has(row.receipt_id)).map((row) => row.id);
+  if (staleIds.length === 0) return;
+  await client.from("notifications").update({ read_at: new Date().toISOString() }).in("id", staleIds);
+}
+
+function explainReceiptWriteError(message: string) {
+  if (message.includes("receipts_status_check") || message.includes("awaiting_confirmation")) {
+    return "База ещё не знает новый статус. В Supabase откройте SQL Editor и выполните файл supabase/payment-confirmation.sql";
+  }
+  return message || "Не удалось сохранить чек";
+}
+
+async function notifyReceiptEvent(
+  client: ReturnType<typeof createSupabaseBrowserClient>,
+  receiptId: string,
+  kind: AppNotification["kind"],
+) {
+  const { error } = await client.rpc("notify_receipt_event", {
+    target_receipt: receiptId,
+    event_kind: kind,
+  });
+  if (!error) return;
+  if (kind === "receipt_created") return;
+  if (error.message.includes("notify_receipt_event") || error.message.includes("schema cache")) {
+    throw new Error("Оплата сохранена, но уведомление не ушло. Выполните файл supabase/payment-confirmation.sql в SQL Editor Supabase.");
+  }
+  throw new Error(error.message);
 }
 
 async function removeStoredFiles(

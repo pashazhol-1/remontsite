@@ -40,10 +40,11 @@ export default function AnalyticsPage() {
       </div>
       <PeriodFilter value={period} onChange={setPeriod} />
       {loading ? <p className="text-muted-foreground">Загрузка...</p> : null}
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
         <StatCard label="Сумма за период" value={formatMoney(moneyOf(visible))} />
         <StatCard label="Средний чек" value={formatMoney(average)} hint={withAmount.length ? `${withAmount.length} с суммой` : undefined} />
-        <StatCard label="Оплачено" value={formatMoney(moneyOf(visible, "paid"))} />
+        <StatCard label="Оплачено" value={formatMoney(moneyOf(visible, "paid"))} hint="Строитель подтвердил" />
+        <StatCard label="Ждёт подтверждения" value={formatMoney(moneyOf(visible, "awaiting_confirmation"))} />
         <StatCard label="Не оплачено" value={formatMoney(moneyOf(visible, "unpaid"))} />
       </div>
 
@@ -72,7 +73,7 @@ export default function AnalyticsPage() {
 }
 
 function StatusBar({ receipts }: { receipts: Receipt[] }) {
-  const parts: ReceiptStatus[] = ["paid", "unpaid", "pending_review"];
+  const parts: ReceiptStatus[] = ["paid", "awaiting_confirmation", "unpaid", "pending_review"];
   const total = Math.max(1, moneyOf(receipts));
   return (
     <div className="space-y-3">
@@ -80,11 +81,18 @@ function StatusBar({ receipts }: { receipts: Receipt[] }) {
         {parts.map((status) => {
           const amount = moneyOf(receipts, status);
           if (amount <= 0) return null;
-          const color = status === "paid" ? "bg-emerald-500" : status === "unpaid" ? "bg-orange-400" : "bg-amber-300";
+          const color =
+            status === "paid"
+              ? "bg-emerald-600"
+              : status === "awaiting_confirmation"
+                ? "bg-emerald-300"
+                : status === "unpaid"
+                  ? "bg-orange-400"
+                  : "bg-amber-300";
           return <div key={status} className={color} style={{ width: `${(amount / total) * 100}%` }} />;
         })}
       </div>
-      <div className="grid gap-2 text-sm sm:grid-cols-3">
+      <div className="grid gap-2 text-sm sm:grid-cols-2">
         {parts.map((status) => (
           <div key={status}>
             <div className="text-muted-foreground">{statusLabel(status)}</div>

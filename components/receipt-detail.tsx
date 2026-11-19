@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { assessRecognition, itemsSum, statusAfterRecognition } from "@/lib/ai/assess";
+import { builderMayDeleteReceipt } from "@/lib/payments";
 import { recognizeReceiptPhotos } from "@/lib/ai/client";
 import { formatDate, formatDateTime, formatMoney } from "@/lib/format";
 import type { Receipt, ReceiptItem, WorkCategory } from "@/types";
@@ -32,6 +33,9 @@ export function ReceiptDetail({
 }) {
   const { profile, repo } = useApp();
   const canEdit = profile?.role === "admin";
+  const canRemove =
+    canEdit ||
+    (profile?.role === "builder" && profile.id === receipt.userId && builderMayDeleteReceipt(receipt.status));
   const [saving, setSaving] = useState(false);
   const [reading, setReading] = useState(false);
   const [paying, setPaying] = useState(false);
@@ -129,14 +133,24 @@ export function ReceiptDetail({
     }
   }
 
-  async function markPaid() {
+  useEffect(() => {
+    function onExternalUpdate(event: Event) {
+      const next = (event as CustomEvent<Receipt>).detail;
+      if (next?.id === receipt.id) onUpdated(next);
+    }
+    window.addEventListener("otchet-receipt-updated", onExternalUpdate);
+    return () => window.removeEventListener("otchet-receipt-updated", onExternalUpdate);
+  }, [onUpdated, receipt.id]);
+
+  async function changePayment(status: "awaiting_confirmation" | "unpaid" | "paid", success: string) {
     setPaying(true);
     try {
-      const updated = await repo.updateReceipt(receipt.id, { status: "paid" });
+      const updated = await repo.updateReceipt(receipt.id, { status });
       onUpdated(updated);
-      toast.success("Чек отмечен как оплаченный");
+      window.dispatchEvent(new Event("otchet-notifications-changed"));
+      toast.success(success);
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Не удалось отметить оплату");
+      toast.error(error instanceof Error ? error.message : "Не удалось изменить оплату");
     } finally {
       setPaying(false);
     }
@@ -202,7 +216,7 @@ export function ReceiptDetail({
         <div className="flex flex-col items-end gap-2">
           <div className="flex items-center gap-2">
             <StatusBadge status={receipt.status} />
-            {canEdit ? (
+            {canRemove ? (
               <Button
                 type="button"
                 variant="destructive"
@@ -215,17 +229,41 @@ export function ReceiptDetail({
               </Button>
             ) : null}
           </div>
-          {canEdit && receipt.status !== "paid" ? (
-            <Button onClick={() => void markPaid()} disabled={paying}>
+          {canEdit && receipt.status !== "paid" && receipt.status !== "awaiting_confirmation" ? (
+            <Button onClick={() => void changePayment("awaiting_confirmation", "Ждём подтверждения строителя")} disabled={paying}>
               {paying ? "Сохранение..." : "Оплатил"}
+            </Button>
+          ) : null}
+          {canEdit && receipt.status === "awaiting_confirmation" ? (
+            <Button variant="outline" onClick={() => void changePayment("unpaid", "Отметка об оплате отменена")} disabled={paying}>
+              Отменить отметку
             </Button>
           ) : null}
         </div>
       </div>
       {canEdit && receipt.status === "pending_review" ? (
         <p className="text-sm text-muted-foreground">
-          Чек ещё на проверке. Кнопка «Оплатил» всё равно отметит его оплаченным.
+          Чек ещё на проверке. «Оплатил» не закроет его сразу: строитель должен подтвердить, что получил деньги.
         </p>
+      ) : null}
+      {canEdit && receipt.status === "awaiting_confirmation" ? (
+        <p className="text-sm text-muted-foreground">
+          Строитель ещё не подтвердил получение денег. Пока он не ответил, отметку можно отменить.
+        </p>
+      ) : null}
+      {!canEdit && receipt.status === "awaiting_confirmation" ? (
+        <div className="rounded-xl border bg-white p-4">
+          <p className="font-medium">Заказчик отметил этот чек оплаченным.</p>
+          <p className="mt-1 text-sm text-muted-foreground">Вы получили эти деньги?</p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <Button disabled={paying} onClick={() => void changePayment("paid", "Оплата подтверждена")}>
+              Да, получил
+            </Button>
+            <Button variant="outline" disabled={paying} onClick={() => void changePayment("unpaid", "Вы ответили, что деньги не получили")}>
+              Нет, не получил
+            </Button>
+          </div>
+        </div>
       ) : null}
 
       {receipt.recognition?.provider === "demo" ? (
@@ -377,7 +415,7 @@ export function ReceiptDetail({
           <p className="text-sm">{receipt.audioTranscription || "Текст речи не распознан. Запись можно прослушать."}</p>
         </div>
       ) : null}
-      {canEdit ? (
+      {canRemove ? (
         <DeleteReceiptDialog
           receipt={receipt}
           open={confirmDelete}

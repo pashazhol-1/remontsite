@@ -68,9 +68,9 @@ export function assessRecognition(
 }
 
 export function statusAfterRecognition(
-  current: "pending_review" | "unpaid" | "paid",
+  current: "pending_review" | "unpaid" | "awaiting_confirmation" | "paid",
   needsReview: boolean,
 ) {
-  if (current === "paid") return current;
+  if (current === "paid" || current === "awaiting_confirmation") return current;
   return needsReview ? "pending_review" : "unpaid";
 }

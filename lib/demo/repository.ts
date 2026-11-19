@@ -8,8 +8,9 @@ import {
   demoReceipts,
   demoUsers,
 } from "@/lib/demo/seed";
+import { assertStatusChange, builderMayDeleteReceipt, notificationKindForChange, notificationText } from "@/lib/payments";
 import type { AppRepository } from "@/lib/data/repository";
-import type { Profile, Receipt, WorkCategory } from "@/types";
+import type { AppNotification, NotificationKind, Profile, Receipt, WorkCategory } from "@/types";
 
 const DEMO_VERSION = "4";
 
@@ -20,6 +21,7 @@ const KEYS = {
   categories: "otchet.categories",
   receipts: "otchet.receipts",
   payments: "otchet.payments",
+  notifications: "otchet.notifications",
 };
 
 type StoredUser = Profile & { password: string };
@@ -268,14 +270,23 @@ export function createDemoRepository(): AppRepository {
       };
       const receipts = readJson<Receipt[]>(KEYS.receipts, demoReceipts);
       writeJson(KEYS.receipts, [receipt, ...receipts]);
+      const users = readJson<StoredUser[]>(KEYS.users, demoUsers);
+      notifyUsers(users.filter((user) => user.role === "admin").map((user) => user.id), "receipt_created", receipt);
       return receipt;
     },
     async updateReceipt(id, patch) {
       const session = await this.getSession();
-      if (session?.role !== "admin") {
-        throw new Error("Изменять чек может только заказчик");
-      }
+      if (!session) throw new Error("Нужно войти в систему");
       const receipts = readJson<Receipt[]>(KEYS.receipts, demoReceipts);
+      const current = receipts.find((receipt) => receipt.id === id);
+      if (!current) throw new Error("Чек не найден");
+      if (session.role !== "admin") {
+        const keys = Object.keys(patch);
+        if (keys.some((key) => key !== "status")) {
+          throw new Error("Изменять чек может только заказчик");
+        }
+      }
+      assertStatusChange(session.role, session.id, current, patch.status);
       const categories = await this.listCategories();
       const payments = readJson<Array<{
         id: string;
@@ -311,18 +322,67 @@ export function createDemoRepository(): AppRepository {
       writeJson(KEYS.receipts, next);
       const updated = next.find((receipt) => receipt.id === id);
       if (!updated) throw new Error("Чек не найден");
+      if (patch.status && patch.status !== current.status) {
+        const kind = notificationKindForChange(session.role, current.status, patch.status);
+        if (kind === "payment_requested" || kind === "payment_cancelled") {
+          notifyUsers([updated.userId], kind, updated);
+        }
+        if (kind === "payment_confirmed" || kind === "payment_rejected") {
+          const users = readJson<StoredUser[]>(KEYS.users, demoUsers);
+          notifyUsers(users.filter((user) => user.role === "admin").map((user) => user.id), kind, updated);
+        }
+        if (current.status === "awaiting_confirmation") closePaymentRequests(updated.id);
+      }
       return updated;
+    },
+    async listNotifications() {
+      const session = await this.getSession();
+      if (!session) return [];
+      closeStalePaymentRequests();
+      return readJson<AppNotification[]>(KEYS.notifications, [])
+        .filter((item) => item.userId === session.id)
+        .sort((left, right) => right.createdAt.localeCompare(left.createdAt));
+    },
+    async markNotificationRead(id) {
+      const session = await this.getSession();
+      const items = readJson<AppNotification[]>(KEYS.notifications, []);
+      writeJson(
+        KEYS.notifications,
+        items.map((item) =>
+          item.id === id && item.userId === session?.id && !item.readAt
+            ? { ...item, readAt: new Date().toISOString() }
+            : item,
+        ),
+      );
+    },
+    async markAllNotificationsRead() {
+      const session = await this.getSession();
+      const items = readJson<AppNotification[]>(KEYS.notifications, []);
+      const now = new Date().toISOString();
+      writeJson(
+        KEYS.notifications,
+        items.map((item) => (item.userId === session?.id && !item.readAt ? { ...item, readAt: now } : item)),
+      );
     },
     async deleteReceipt(id) {
       const session = await this.getSession();
-      if (session?.role !== "admin") {
-        throw new Error("Удалять чек может только заказчик");
-      }
+      if (!session) throw new Error("Нужно войти в систему");
       const receipts = readJson<Receipt[]>(KEYS.receipts, demoReceipts);
-      if (!receipts.some((receipt) => receipt.id === id)) throw new Error("Чек не найден");
+      const current = receipts.find((receipt) => receipt.id === id);
+      if (!current) throw new Error("Чек не найден");
+      if (session.role !== "admin") {
+        if (session.id !== current.userId || !builderMayDeleteReceipt(current.status)) {
+          throw new Error("Этот чек уже нельзя удалить: заказчик отметил оплату");
+        }
+      }
       writeJson(
         KEYS.receipts,
         receipts.filter((receipt) => receipt.id !== id),
+      );
+      const notes = readJson<AppNotification[]>(KEYS.notifications, []);
+      writeJson(
+        KEYS.notifications,
+        notes.filter((item) => item.receiptId !== id),
       );
       const payments = readJson<Array<{ receiptId: string }>>(KEYS.payments, []);
       writeJson(
@@ -340,5 +400,59 @@ export function resetDemoData() {
   localStorage.removeItem(KEYS.categories);
   localStorage.removeItem(KEYS.receipts);
   localStorage.removeItem(KEYS.payments);
+  localStorage.removeItem(KEYS.notifications);
   void DEMO_ADMIN_ID;
+}
+
+function closeStalePaymentRequests() {
+  const receipts = readJson<Receipt[]>(KEYS.receipts, demoReceipts);
+  const open = new Set(
+    receipts.filter((receipt) => receipt.status === "awaiting_confirmation").map((receipt) => receipt.id),
+  );
+  const items = readJson<AppNotification[]>(KEYS.notifications, []);
+  const stale = items.some(
+    (item) => item.kind === "payment_requested" && !item.readAt && !open.has(item.receiptId),
+  );
+  if (!stale) return;
+  const now = new Date().toISOString();
+  writeJson(
+    KEYS.notifications,
+    items.map((item) =>
+      item.kind === "payment_requested" && !item.readAt && !open.has(item.receiptId)
+        ? { ...item, readAt: now }
+        : item,
+    ),
+  );
+}
+
+function closePaymentRequests(receiptId: string) {
+  const now = new Date().toISOString();
+  const items = readJson<AppNotification[]>(KEYS.notifications, []);
+  writeJson(
+    KEYS.notifications,
+    items.map((item) =>
+      item.receiptId === receiptId && item.kind === "payment_requested" && !item.readAt
+        ? { ...item, readAt: now }
+        : item,
+    ),
+  );
+}
+
+function notifyUsers(userIds: string[], kind: NotificationKind, receipt: Receipt) {
+  const text = notificationText(kind, receipt);
+  const now = new Date().toISOString();
+  const items = readJson<AppNotification[]>(KEYS.notifications, []);
+  writeJson(KEYS.notifications, [
+    ...userIds.map((userId) => ({
+      id: crypto.randomUUID(),
+      userId,
+      receiptId: receipt.id,
+      kind,
+      title: text.title,
+      body: text.body,
+      readAt: null,
+      createdAt: now,
+    })),
+    ...items,
+  ]);
 }

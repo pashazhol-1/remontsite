@@ -3,10 +3,12 @@
 import { useApp } from "@/components/app-provider";
 import { ReceiptList } from "@/components/receipt-list";
 import { buttonVariants } from "@/components/ui/button";
+import { builderMayDeleteReceipt } from "@/lib/payments";
 import { cn } from "@/lib/utils";
 import type { Receipt } from "@/types";
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { toast } from "sonner";
 
 export default function BuilderHomePage() {
   const { repo, profile } = useApp();
@@ -20,6 +22,16 @@ export default function BuilderHomePage() {
     });
   }, [repo]);
 
+  async function removeReceipt(receipt: Receipt) {
+    try {
+      await repo.deleteReceipt(receipt.id);
+      setReceipts((current) => current.filter((item) => item.id !== receipt.id));
+      toast.success("Чек удалён");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Не удалось удалить чек");
+    }
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
@@ -31,7 +43,16 @@ export default function BuilderHomePage() {
           Добавить чек
         </Link>
       </div>
-      {loading ? <p className="text-muted-foreground">Загрузка...</p> : <ReceiptList receipts={receipts} hrefFor={(receipt) => `/builder/receipts/${receipt.id}`} />}
+      {loading ? (
+        <p className="text-muted-foreground">Загрузка...</p>
+      ) : (
+        <ReceiptList
+          receipts={receipts}
+          hrefFor={(receipt) => `/builder/receipts/${receipt.id}`}
+          onDelete={removeReceipt}
+          canDelete={(receipt) => builderMayDeleteReceipt(receipt.status)}
+        />
+      )}
     </div>
   );
 }

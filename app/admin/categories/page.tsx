@@ -99,7 +99,7 @@ export default function CategoriesPage() {
                   {receiptCountLabel(own.length)} · всего {formatMoney(moneyOf(own))}
                 </div>
                 <div className="text-sm text-muted-foreground">
-                  Оплачено {formatMoney(moneyOf(own, "paid"))} · не оплачено {formatMoney(moneyOf(own, "unpaid"))}
+                  Оплачено {formatMoney(moneyOf(own, "paid"))} · ждёт подтверждения {formatMoney(moneyOf(own, "awaiting_confirmation"))} · не оплачено {formatMoney(moneyOf(own, "unpaid"))}
                   {moneyOf(own, "pending_review") > 0
                     ? ` · на проверке ${formatMoney(moneyOf(own, "pending_review"))}`
                     : ""}

@@ -1,6 +1,24 @@
 export type UserRole = "admin" | "builder";
 
-export type ReceiptStatus = "pending_review" | "unpaid" | "paid";
+export type ReceiptStatus = "pending_review" | "unpaid" | "awaiting_confirmation" | "paid";
+
+export type NotificationKind =
+  | "receipt_created"
+  | "payment_requested"
+  | "payment_confirmed"
+  | "payment_rejected"
+  | "payment_cancelled";
+
+export type AppNotification = {
+  id: string;
+  userId: string;
+  receiptId: string;
+  kind: NotificationKind;
+  title: string;
+  body: string;
+  readAt: string | null;
+  createdAt: string;
+};
 
 export type Profile = {
   id: string;

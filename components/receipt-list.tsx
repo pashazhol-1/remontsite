@@ -22,12 +22,14 @@ export function ReceiptList({
   categories,
   detailed = false,
   onDelete,
+  canDelete = () => true,
 }: {
   receipts: Receipt[];
   hrefFor: (receipt: Receipt) => string;
   categories?: WorkCategory[];
   detailed?: boolean;
   onDelete?: (receipt: Receipt) => Promise<void>;
+  canDelete?: (receipt: Receipt) => boolean;
 }) {
   const router = useRouter();
   const [query, setQuery] = useState("");
@@ -89,8 +91,9 @@ export function ReceiptList({
             <IconSelect icon={CircleDot} label="Статус" value={status} onChange={(value) => setStatus(value as ReceiptStatus | "all")} className="w-40">
               <option value="all">Все статусы</option>
               <option value="pending_review">{statusLabel("pending_review")}</option>
-              <option value="unpaid">{statusLabel("unpaid")}</option>
-              <option value="paid">{statusLabel("paid")}</option>
+                <option value="unpaid">{statusLabel("unpaid")}</option>
+                <option value="awaiting_confirmation">{statusLabel("awaiting_confirmation")}</option>
+                <option value="paid">{statusLabel("paid")}</option>
             </IconSelect>
             <IconSelect icon={Hammer} label="Вид работ" value={categoryId} onChange={setCategoryId} className="w-44">
               <option value="all">Все виды работ</option>
@@ -126,7 +129,7 @@ export function ReceiptList({
                   </Link>
                   <div className="flex items-center gap-2">
                     <StatusBadge status={receipt.status} />
-                    {onDelete ? (
+                    {onDelete && canDelete(receipt) ? (
                       <Button
                         type="button"
                         variant="destructive"
@@ -181,19 +184,21 @@ export function ReceiptList({
                     </td>
                     {onDelete ? (
                       <td className="px-4 py-3 text-right">
-                        <Button
-                          type="button"
-                          variant="destructive"
-                          size="icon"
-                          aria-label="Удалить чек"
-                          disabled={deletingId === receipt.id}
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            setPendingDelete(receipt);
-                          }}
-                        >
-                          <Trash2 />
-                        </Button>
+                        {canDelete(receipt) ? (
+                          <Button
+                            type="button"
+                            variant="destructive"
+                            size="icon"
+                            aria-label="Удалить чек"
+                            disabled={deletingId === receipt.id}
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              setPendingDelete(receipt);
+                            }}
+                          >
+                            <Trash2 />
+                          </Button>
+                        ) : null}
                       </td>
                     ) : null}
                   </tr>

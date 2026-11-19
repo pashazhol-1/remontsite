@@ -41,9 +41,10 @@ export default function AdminReceiptsPage() {
         <h1 className="text-2xl font-semibold tracking-tight">Сводка</h1>
         <p className="text-muted-foreground">Все покупки строителей. Суммы считаются по тем чекам, где уже указан итог.</p>
       </div>
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-6">
         <StatCard label="Всего" value={formatMoney(moneyOf(receipts))} />
-        <StatCard label="Оплачено" value={formatMoney(moneyOf(receipts, "paid"))} />
+        <StatCard label="Оплачено" value={formatMoney(moneyOf(receipts, "paid"))} hint="Строитель подтвердил" />
+        <StatCard label="Ждёт подтверждения" value={formatMoney(moneyOf(receipts, "awaiting_confirmation"))} />
         <StatCard label="Не оплачено" value={formatMoney(moneyOf(receipts, "unpaid"))} />
         <StatCard label="На проверке" value={formatMoney(moneyOf(receipts, "pending_review"))} hint={`${reviewCount} шт.`} />
         <StatCard label="Чеков" value={String(receipts.length)} />

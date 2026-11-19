@@ -55,6 +55,8 @@ export function statusLabel(status: ReceiptStatus) {
   switch (status) {
     case "paid":
       return "Оплачено";
+    case "awaiting_confirmation":
+      return "Ждёт подтверждения";
     case "unpaid":
       return "Не оплачено";
     default:
