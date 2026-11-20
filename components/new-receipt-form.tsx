@@ -100,7 +100,7 @@ export function NewReceiptForm({
       </section>
       {error ? <p className="text-sm text-destructive">{error}</p> : null}
       <Button type="submit" className="h-12 w-full text-base" disabled={submitting}>
-        {submitting ? "Отправка и чтение чека..." : "Отправить чек"}
+        {submitting ? "Отправка..." : "Отправить чек"}
       </Button>
     </form>
   );

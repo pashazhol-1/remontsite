@@ -266,6 +266,11 @@ export function ReceiptDetail({
         </div>
       ) : null}
 
+      {!receipt.recognition && receipt.status === "pending_review" ? (
+        <p className="rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-950">
+          Фото ещё читается. Магазин, товары и сумма появятся сами.
+        </p>
+      ) : null}
       {receipt.recognition?.provider === "demo" ? (
         <p className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
           Это учебная расшифровка, не текст с фотографии. Настоящее чтение включится после бесплатного ключа OpenRouter.
@@ -376,13 +381,40 @@ export function ReceiptDetail({
           <p className="text-sm text-muted-foreground">Позиции пока не заполнены.</p>
         ) : (
           <div className="space-y-3">
+            {canEdit ? (
+              <div className="hidden gap-2 px-3 text-xs text-muted-foreground sm:grid sm:grid-cols-12">
+                <span className="sm:col-span-5">Наименование</span>
+                <span className="sm:col-span-2">Количество</span>
+                <span className="sm:col-span-2">Цена</span>
+                <span className="sm:col-span-2">Сумма</span>
+              </div>
+            ) : (
+              <div className="hidden gap-2 px-4 text-xs text-muted-foreground sm:grid sm:grid-cols-4">
+                <span>Наименование</span>
+                <span>Количество</span>
+                <span>Цена</span>
+                <span>Сумма</span>
+              </div>
+            )}
             {shownItems.map((item) =>
               canEdit ? (
                 <div key={item.id} className="grid gap-2 rounded-xl border bg-white p-3 sm:grid-cols-12">
-                  <Input className="sm:col-span-5" value={item.name} aria-label="Наименование" onChange={(event) => updateItem(item.id, { name: event.target.value })} />
-                  <Input className="sm:col-span-2" inputMode="decimal" value={String(item.quantity)} aria-label="Количество" onChange={(event) => updateItem(item.id, { quantity: Number(event.target.value.replace(",", ".")) || 0 })} />
-                  <Input className="sm:col-span-2" inputMode="decimal" value={String(item.unitPrice)} aria-label="Цена" onChange={(event) => updateItem(item.id, { unitPrice: Number(event.target.value.replace(",", ".")) || 0 })} />
-                  <Input className="sm:col-span-2" inputMode="decimal" value={String(item.totalPrice)} aria-label="Сумма" onChange={(event) => updateItem(item.id, { totalPrice: Number(event.target.value.replace(",", ".")) || 0 })} />
+                  <label className="grid gap-1 sm:col-span-5">
+                    <span className="text-xs text-muted-foreground sm:sr-only">Наименование</span>
+                    <Input value={item.name} aria-label="Наименование" onChange={(event) => updateItem(item.id, { name: event.target.value })} />
+                  </label>
+                  <label className="grid gap-1 sm:col-span-2">
+                    <span className="text-xs text-muted-foreground sm:sr-only">Количество</span>
+                    <Input inputMode="decimal" value={String(item.quantity)} aria-label="Количество" onChange={(event) => updateItem(item.id, { quantity: Number(event.target.value.replace(",", ".")) || 0 })} />
+                  </label>
+                  <label className="grid gap-1 sm:col-span-2">
+                    <span className="text-xs text-muted-foreground sm:sr-only">Цена</span>
+                    <Input inputMode="decimal" value={String(item.unitPrice)} aria-label="Цена" onChange={(event) => updateItem(item.id, { unitPrice: Number(event.target.value.replace(",", ".")) || 0 })} />
+                  </label>
+                  <label className="grid gap-1 sm:col-span-2">
+                    <span className="text-xs text-muted-foreground sm:sr-only">Сумма</span>
+                    <Input inputMode="decimal" value={String(item.totalPrice)} aria-label="Сумма" onChange={(event) => updateItem(item.id, { totalPrice: Number(event.target.value.replace(",", ".")) || 0 })} />
+                  </label>
                   <Button
                     variant="ghost"
                     className="sm:col-span-1"

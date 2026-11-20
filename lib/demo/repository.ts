@@ -221,12 +221,6 @@ export function createDemoRepository(): AppRepository {
       const categories = await this.listCategories();
       const category = categories.find((item) => item.id === input.categoryId);
       if (!category) throw new Error("Выберите вид работ");
-      let recognition = null;
-      try {
-        recognition = await recognizeReceiptPhotos(input.photos);
-      } catch {
-        recognition = null;
-      }
       const photos = await Promise.all(
         input.photos.map(async (file) => ({
           id: crypto.randomUUID(),
@@ -240,31 +234,18 @@ export function createDemoRepository(): AppRepository {
         userName: session.name,
         categoryId: category.id,
         categoryName: category.name,
-        storeName: recognition?.storeName ?? null,
-        receiptDate: recognition?.receiptDate ?? null,
-        receiptNumber: recognition?.receiptNumber ?? null,
-        totalAmount: recognition?.totalAmount ?? null,
-        currency: recognition?.currency ?? DEFAULT_CURRENCY,
-        status: recognition
-          ? statusAfterRecognition("pending_review", recognition.needsReview)
-          : "pending_review",
+        storeName: null,
+        receiptDate: null,
+        receiptNumber: null,
+        totalAmount: null,
+        currency: DEFAULT_CURRENCY,
+        status: "pending_review",
         commentText: input.commentText.trim() || null,
         audioUrl: input.audio ? await fileToDataUrl(input.audio) : null,
         audioTranscription: input.audioTranscript?.trim() || null,
         images: photos,
-        items: (recognition?.items ?? []).map((item) => ({
-          id: crypto.randomUUID(),
-          ...item,
-        })),
-        recognition: recognition
-          ? {
-              provider: recognition.provider,
-              model: recognition.model,
-              confidence: recognition.confidence,
-              needsReview: recognition.needsReview,
-              reviewReason: recognition.reviewReason,
-            }
-          : null,
+        items: [],
+        recognition: null,
         createdAt: now,
         updatedAt: now,
       };
@@ -272,6 +253,7 @@ export function createDemoRepository(): AppRepository {
       writeJson(KEYS.receipts, [receipt, ...receipts]);
       const users = readJson<StoredUser[]>(KEYS.users, demoUsers);
       notifyUsers(users.filter((user) => user.role === "admin").map((user) => user.id), "receipt_created", receipt);
+      void fillDemoRecognition(receipt.id, input.photos);
       return receipt;
     },
     async updateReceipt(id, patch) {
@@ -434,6 +416,48 @@ function closePaymentRequests(receiptId: string) {
       item.receiptId === receiptId && item.kind === "payment_requested" && !item.readAt
         ? { ...item, readAt: now }
         : item,
+    ),
+  );
+}
+
+async function fillDemoRecognition(receiptId: string, photos: File[]) {
+  let recognition = null;
+  try {
+    recognition = await recognizeReceiptPhotos(photos);
+  } catch {
+    recognition = null;
+  }
+  if (!recognition) return;
+  const receipts = readJson<Receipt[]>(KEYS.receipts, demoReceipts);
+  const current = receipts.find((receipt) => receipt.id === receiptId);
+  if (!current || current.recognition) return;
+  const nextStatus =
+    current.status === "pending_review"
+      ? statusAfterRecognition("pending_review", recognition.needsReview)
+      : current.status;
+  writeJson(
+    KEYS.receipts,
+    receipts.map((receipt) =>
+      receipt.id === receiptId
+        ? {
+            ...receipt,
+            storeName: recognition.storeName,
+            receiptDate: recognition.receiptDate,
+            receiptNumber: recognition.receiptNumber,
+            totalAmount: recognition.totalAmount,
+            currency: recognition.currency,
+            status: nextStatus,
+            items: recognition.items.map((item) => ({ id: crypto.randomUUID(), ...item })),
+            recognition: {
+              provider: recognition.provider,
+              model: recognition.model,
+              confidence: recognition.confidence,
+              needsReview: recognition.needsReview,
+              reviewReason: recognition.reviewReason,
+            },
+            updatedAt: new Date().toISOString(),
+          }
+        : receipt,
     ),
   );
 }

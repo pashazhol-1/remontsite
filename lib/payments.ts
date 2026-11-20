@@ -52,10 +52,9 @@ export function notificationText(
   const summary = receiptSummary(receipt);
   switch (kind) {
     case "receipt_created":
-      return {
-        title: receipt.status === "pending_review" ? "Чек на проверке" : "Новый чек",
-        body: summary,
-      };
+      return receipt.storeName
+        ? { title: "Новый чек", body: summary }
+        : { title: "Новый чек", body: "Фото ещё читается. Магазин и сумма появятся сами." };
     case "payment_requested":
       return {
         title: "Подтвердите оплату",

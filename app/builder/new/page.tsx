@@ -33,7 +33,7 @@ export default function NewReceiptPage() {
           setFormError("");
           try {
             await repo.createReceipt(input);
-            toast.success("Чек отправлен. Фото прочитано, проверьте расшифровку у заказчика.");
+            toast.success("Чек отправлен заказчику. Фото прочитается само.");
             router.replace("/builder");
           } catch (error) {
             const message = error instanceof Error ? error.message : "Не удалось отправить чек";

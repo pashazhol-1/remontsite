@@ -29,6 +29,18 @@ returns trigger
 language plpgsql
 as $$
 begin
+  if current_setting('app.recognition_update', true) = 'on' then
+    if new.user_id is distinct from old.user_id
+      or new.category_id is distinct from old.category_id
+      or new.comment_text is distinct from old.comment_text
+      or new.audio_url is distinct from old.audio_url
+      or new.audio_transcription is distinct from old.audio_transcription
+    then
+      raise exception 'Распознавание не может менять эти поля';
+    end if;
+    return new;
+  end if;
+
   if public.is_admin() then
     return new;
   end if;
@@ -124,8 +136,11 @@ begin
     end if;
     insert into public.notifications (user_id, receipt_id, kind, title, body)
     select p.id, rec.id, event_kind,
-      case when rec.status = 'pending_review' then 'Чек на проверке' else 'Новый чек' end,
-      summary
+      'Новый чек',
+      case
+        when rec.store_name is null then 'Фото ещё читается. Магазин и сумма появятся сами.'
+        else summary
+      end
     from public.profiles p
     where p.role = 'admin';
   elsif event_kind = 'payment_requested' then
@@ -178,3 +193,83 @@ create policy "photos_delete_owner" on storage.objects
     bucket_id in ('receipt-photos', 'receipt-audio')
     and (storage.foldername(name))[1] = auth.uid()::text
   );
+
+create or replace function public.apply_receipt_recognition(target_receipt uuid, payload jsonb)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  rec public.receipts;
+  actor uuid := auth.uid();
+  next_status text;
+  item jsonb;
+  receipt_day date;
+begin
+  if actor is null then
+    raise exception 'Нужно войти';
+  end if;
+
+  select * into rec from public.receipts where id = target_receipt;
+  if rec.id is null then
+    raise exception 'Чек не найден';
+  end if;
+  if rec.user_id <> actor and not public.is_admin() then
+    raise exception 'Нельзя';
+  end if;
+  if exists (select 1 from public.ai_processing where receipt_id = rec.id) then
+    return;
+  end if;
+
+  next_status := rec.status;
+  if rec.status = 'pending_review' and coalesce((payload->>'needsReview')::boolean, true) = false then
+    next_status := 'unpaid';
+  end if;
+
+  begin
+    receipt_day := nullif(payload->>'receiptDate', '')::date;
+  exception
+    when others then
+      receipt_day := null;
+  end;
+
+  perform set_config('app.recognition_update', 'on', true);
+
+  update public.receipts
+  set
+    store_name = nullif(payload->>'storeName', ''),
+    receipt_date = receipt_day,
+    receipt_number = nullif(payload->>'receiptNumber', ''),
+    total_amount = nullif(payload->>'totalAmount', '')::numeric,
+    currency = coalesce(nullif(payload->>'currency', ''), currency),
+    status = next_status,
+    updated_at = now()
+  where id = rec.id;
+
+  for item in select value from jsonb_array_elements(coalesce(payload->'items', '[]'::jsonb))
+  loop
+    insert into public.receipt_items (receipt_id, name, quantity, unit_price, total_price)
+    values (
+      rec.id,
+      coalesce(nullif(item->>'name', ''), 'Без названия'),
+      coalesce((item->>'quantity')::numeric, 1),
+      coalesce((item->>'unitPrice')::numeric, 0),
+      coalesce((item->>'totalPrice')::numeric, 0)
+    );
+  end loop;
+
+  insert into public.ai_processing (receipt_id, provider, model, processing_status, confidence, error_message)
+  values (
+    rec.id,
+    nullif(payload->>'provider', ''),
+    nullif(payload->>'model', ''),
+    case when coalesce((payload->>'needsReview')::boolean, true) then 'needs_review' else 'ok' end,
+    nullif(payload->>'confidence', '')::numeric,
+    nullif(payload->>'reviewReason', '')
+  );
+end;
+$$;
+
+revoke all on function public.apply_receipt_recognition(uuid, jsonb) from public;
+grant execute on function public.apply_receipt_recognition(uuid, jsonb) to authenticated;

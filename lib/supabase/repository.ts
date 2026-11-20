@@ -1,5 +1,3 @@
-import { statusAfterRecognition } from "@/lib/ai/assess";
-import { recognizeReceiptPhotos } from "@/lib/ai/client";
 import { DEFAULT_CURRENCY, loginFromEmail, toAuthEmail } from "@/lib/config";
 import type { AppRepository } from "@/lib/data/repository";
 import { assertStatusChange, builderMayDeleteReceipt, notificationKindForChange } from "@/lib/payments";
@@ -303,12 +301,6 @@ export function createSupabaseRepository(): AppRepository {
     async createReceipt(input) {
       const session = await this.getSession();
       if (!session) throw new Error("Нужно войти в систему");
-      let recognition = null;
-      try {
-        recognition = await recognizeReceiptPhotos(input.photos);
-      } catch {
-        recognition = null;
-      }
       const { data: receipt, error } = await client
         .from("receipts")
         .insert({
@@ -316,14 +308,8 @@ export function createSupabaseRepository(): AppRepository {
           category_id: input.categoryId,
           comment_text: input.commentText.trim() || null,
           audio_transcription: input.audioTranscript?.trim() || null,
-          store_name: recognition?.storeName ?? null,
-          receipt_date: recognition?.receiptDate ?? null,
-          receipt_number: recognition?.receiptNumber ?? null,
-          total_amount: recognition?.totalAmount ?? null,
-          currency: recognition?.currency ?? DEFAULT_CURRENCY,
-          status: recognition
-            ? statusAfterRecognition("pending_review", recognition.needsReview)
-            : "pending_review",
+          currency: DEFAULT_CURRENCY,
+          status: "pending_review",
         })
         .select("id")
         .single();
@@ -344,30 +330,6 @@ export function createSupabaseRepository(): AppRepository {
       });
       await Promise.all(uploads);
 
-      if (recognition) {
-        if (recognition.items.length > 0) {
-          const { error: itemsError } = await client.from("receipt_items").insert(
-            recognition.items.map((item) => ({
-              receipt_id: receipt.id,
-              name: item.name,
-              quantity: item.quantity,
-              unit_price: item.unitPrice,
-              total_price: item.totalPrice,
-            })),
-          );
-          if (itemsError) throw itemsError;
-        }
-        const { error: aiError } = await client.from("ai_processing").insert({
-          receipt_id: receipt.id,
-          provider: recognition.provider,
-          model: recognition.model,
-          processing_status: recognition.needsReview ? "needs_review" : "ok",
-          confidence: recognition.confidence,
-          error_message: recognition.reviewReason,
-        });
-        if (aiError) throw aiError;
-      }
-
       if (input.audio) {
         const audioPath = `${session.id}/${receipt.id}/comment.webm`;
         const { error: audioError } = await client.storage
@@ -380,6 +342,7 @@ export function createSupabaseRepository(): AppRepository {
       const created = await this.getReceipt(receipt.id);
       if (!created) throw new Error("Чек сохранён, но не удалось его прочитать");
       await notifyReceiptEvent(client, created.id, "receipt_created");
+      await fetch(`/api/receipts/${created.id}/recognize`, { method: "POST" }).catch(() => undefined);
       return created;
     },
     async updateReceipt(id, patch) {
