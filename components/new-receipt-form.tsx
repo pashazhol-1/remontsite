@@ -53,6 +53,10 @@ export function NewReceiptForm({
     });
   }
 
+  if (active.length === 0) {
+    return <p className="text-sm text-muted-foreground">Нет доступных видов работ. Заказчик назначает их в разделе «Виды работ».</p>;
+  }
+
   return (
     <form onSubmit={(event) => void handleSubmit(event)} className="space-y-5">
       <section className="space-y-2">
@@ -69,8 +73,8 @@ export function NewReceiptForm({
                 key={category.id}
                 type="button"
                 onClick={() => setCategoryId(category.id)}
-                className={`rounded-xl border px-3 py-3 text-left text-sm ${
-                  selected ? "border-foreground bg-muted font-medium" : "hover:bg-muted/50"
+                className={`rounded-xl border bg-white px-3 py-3 text-left text-sm ${
+                  selected ? "border-primary bg-accent font-medium text-accent-foreground" : "hover:bg-muted"
                 }`}
               >
                 {category.name}

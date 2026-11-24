@@ -5,26 +5,48 @@ import { PeriodFilter } from "@/components/period-filter";
 import { StatCard } from "@/components/stat-card";
 import { formatMoney, statusLabel } from "@/lib/format";
 import { defaultPeriod, matchesPeriod, moneyOf, receiptMoment, type PeriodValue } from "@/lib/period";
-import type { Receipt, ReceiptStatus } from "@/types";
+import type { Receipt, ReceiptStatus, WorkRecord } from "@/types";
 import { useEffect, useMemo, useState } from "react";
 
 export default function AnalyticsPage() {
   const { repo } = useApp();
   const [receipts, setReceipts] = useState<Receipt[]>([]);
+  const [works, setWorks] = useState<WorkRecord[]>([]);
+  const [slice, setSlice] = useState<"all" | "receipts" | "works">("all");
   const [period, setPeriod] = useState<PeriodValue>(defaultPeriod);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    void repo.listReceipts("all").then((items) => {
-      setReceipts(items);
+    void Promise.all([repo.listReceipts("all"), repo.listWorks("all")]).then(([nextReceipts, nextWorks]) => {
+      setReceipts(nextReceipts);
+      setWorks(nextWorks);
       setLoading(false);
     });
   }, [repo]);
 
-  const visible = useMemo(
-    () => receipts.filter((receipt) => matchesPeriod(receipt, period)),
-    [period, receipts],
-  );
+  const visible = useMemo(() => {
+    const receiptRows: MoneyEntry[] = receipts
+      .filter((receipt) => matchesPeriod(receipt, period))
+      .map((receipt) => ({
+        totalAmount: receipt.totalAmount,
+        status: receipt.status,
+        receiptDate: receipt.receiptDate,
+        createdAt: receipt.createdAt,
+        categoryName: receipt.categoryName,
+      }));
+    const workRows: MoneyEntry[] = works
+      .filter((work) => matchesPeriod({ receiptDate: work.startDate, createdAt: work.createdAt }, period))
+      .map((work) => ({
+        totalAmount: work.totalAmount,
+        status: work.status,
+        receiptDate: work.startDate,
+        createdAt: work.createdAt,
+        categoryName: work.categoryName,
+      }));
+    if (slice === "receipts") return receiptRows;
+    if (slice === "works") return workRows;
+    return [...receiptRows, ...workRows];
+  }, [period, receipts, slice, works]);
   const withAmount = visible.filter((receipt) => receipt.totalAmount != null);
   const average = withAmount.length === 0 ? null : moneyOf(withAmount) / withAmount.length;
   const months = useMemo(() => groupByMonth(visible), [visible]);
@@ -36,7 +58,23 @@ export default function AnalyticsPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Аналитика</h1>
-        <p className="text-muted-foreground">Цифры пересчитываются по сохранённым чекам и их статусам.</p>
+        <p className="text-muted-foreground">Чеки, работы мастеров и выбранный период.</p>
+      </div>
+      <div className="flex flex-wrap gap-2">
+        {([
+          ["all", "Всё"],
+          ["receipts", "Материалы"],
+          ["works", "Работы"],
+        ] as const).map(([value, label]) => (
+          <button
+            key={value}
+            type="button"
+            onClick={() => setSlice(value)}
+            className={`rounded-lg px-3 py-1.5 text-sm ${slice === value ? "bg-primary text-primary-foreground" : "bg-white text-muted-foreground ring-1 ring-border"}`}
+          >
+            {label}
+          </button>
+        ))}
       </div>
       <PeriodFilter value={period} onChange={setPeriod} />
       {loading ? <p className="text-muted-foreground">Загрузка...</p> : null}
@@ -72,7 +110,15 @@ export default function AnalyticsPage() {
   );
 }
 
-function StatusBar({ receipts }: { receipts: Receipt[] }) {
+type MoneyEntry = {
+  totalAmount: number | null;
+  status: ReceiptStatus;
+  receiptDate: string | null;
+  createdAt: string;
+  categoryName: string;
+};
+
+function StatusBar({ receipts }: { receipts: MoneyEntry[] }) {
   const parts: ReceiptStatus[] = ["paid", "awaiting_confirmation", "unpaid", "pending_review"];
   const total = Math.max(1, moneyOf(receipts));
   return (
@@ -112,13 +158,13 @@ function Bar({ label, value, width }: { label: string; value: string; width: num
         <span className="font-medium">{value}</span>
       </div>
       <div className="h-2 rounded-full bg-muted">
-        <div className="h-2 rounded-full bg-foreground/80" style={{ width: `${Math.max(width, 2)}%` }} />
+        <div className="h-2 rounded-full bg-primary" style={{ width: `${Math.max(width, 2)}%` }} />
       </div>
     </div>
   );
 }
 
-function groupByMonth(receipts: Receipt[]) {
+function groupByMonth(receipts: MoneyEntry[]) {
   const groups = new Map<string, number>();
   for (const receipt of receipts) {
     const date = receiptMoment(receipt);
@@ -138,7 +184,7 @@ function groupByMonth(receipts: Receipt[]) {
     });
 }
 
-function groupByCategory(receipts: Receipt[]) {
+function groupByCategory(receipts: MoneyEntry[]) {
   const groups = new Map<string, number>();
   for (const receipt of receipts) {
     groups.set(receipt.categoryName, (groups.get(receipt.categoryName) ?? 0) + (receipt.totalAmount ?? 0));

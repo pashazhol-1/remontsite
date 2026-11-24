@@ -2,10 +2,13 @@ import type {
   AppNotification,
   CategoryInput,
   CreateReceiptInput,
+  CreateWorkInput,
   Profile,
   Receipt,
   ReceiptPatch,
   WorkCategory,
+  WorkPatch,
+  WorkRecord,
 } from "@/types";
 
 export type AppRepository = {
@@ -25,6 +28,11 @@ export type AppRepository = {
   createReceipt: (input: CreateReceiptInput) => Promise<Receipt>;
   updateReceipt: (id: string, patch: ReceiptPatch) => Promise<Receipt>;
   deleteReceipt: (id: string) => Promise<void>;
+  listWorks: (scope: "mine" | "all") => Promise<WorkRecord[]>;
+  getWork: (id: string) => Promise<WorkRecord | null>;
+  createWork: (input: CreateWorkInput) => Promise<WorkRecord>;
+  updateWork: (id: string, patch: WorkPatch) => Promise<WorkRecord>;
+  deleteWork: (id: string) => Promise<void>;
   listNotifications: () => Promise<AppNotification[]>;
   markNotificationRead: (id: string) => Promise<void>;
   markAllNotificationsRead: () => Promise<void>;

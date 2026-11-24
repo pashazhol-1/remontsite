@@ -51,6 +51,10 @@ export function formatDateTime(value: string | null | undefined) {
   });
 }
 
+export function progressLabel(progress: "planned" | "done") {
+  return progress === "done" ? "Работа выполнена" : "Запланирована";
+}
+
 export function statusLabel(status: ReceiptStatus) {
   switch (status) {
     case "paid":

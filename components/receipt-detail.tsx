@@ -219,8 +219,9 @@ export function ReceiptDetail({
             {canRemove ? (
               <Button
                 type="button"
-                variant="destructive"
+                variant="ghost"
                 size="icon"
+                className="text-muted-foreground hover:text-destructive"
                 aria-label="Удалить чек"
                 disabled={deleting}
                 onClick={() => setConfirmDelete(true)}
@@ -382,14 +383,14 @@ export function ReceiptDetail({
         ) : (
           <div className="space-y-3">
             {canEdit ? (
-              <div className="hidden gap-2 px-3 text-xs text-muted-foreground sm:grid sm:grid-cols-12">
+              <div className="hidden gap-2 rounded-lg bg-muted px-3 py-2 text-[11px] font-semibold tracking-wide text-muted-foreground uppercase sm:grid sm:grid-cols-12">
                 <span className="sm:col-span-5">Наименование</span>
                 <span className="sm:col-span-2">Количество</span>
                 <span className="sm:col-span-2">Цена</span>
                 <span className="sm:col-span-2">Сумма</span>
               </div>
             ) : (
-              <div className="hidden gap-2 px-4 text-xs text-muted-foreground sm:grid sm:grid-cols-4">
+              <div className="hidden gap-2 rounded-lg bg-muted px-4 py-2 text-[11px] font-semibold tracking-wide text-muted-foreground uppercase sm:grid sm:grid-cols-4">
                 <span>Наименование</span>
                 <span>Количество</span>
                 <span>Цена</span>

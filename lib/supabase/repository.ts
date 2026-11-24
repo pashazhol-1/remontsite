@@ -1,8 +1,9 @@
+import { assertCategoryAllowed } from "@/lib/categories";
 import { DEFAULT_CURRENCY, loginFromEmail, toAuthEmail } from "@/lib/config";
 import type { AppRepository } from "@/lib/data/repository";
-import { assertStatusChange, builderMayDeleteReceipt, notificationKindForChange } from "@/lib/payments";
+import { assertStatusChange, builderMayDeleteReceipt, builderMayDeleteWork, notificationKindForChange } from "@/lib/payments";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
-import type { AppNotification, Profile, Receipt, ReceiptImage, ReceiptItem, UserRole, WorkCategory } from "@/types";
+import type { AppNotification, Profile, Receipt, ReceiptImage, ReceiptItem, UserRole, WorkCategory, WorkRecord } from "@/types";
 import type { User } from "@supabase/supabase-js";
 
 type ProfileRow = {
@@ -18,6 +19,7 @@ type CategoryRow = {
   name: string;
   description: string | null;
   is_active: boolean;
+  assignee_ids?: string[] | null;
   created_at: string;
 };
 
@@ -65,6 +67,30 @@ function mapProfile(row: ProfileRow): Profile {
     role: row.role,
     createdAt: row.created_at,
   };
+}
+
+function mapCategory(row: CategoryRow): WorkCategory {
+  return {
+    id: row.id,
+    name: row.name,
+    description: row.description ?? "",
+    isActive: row.is_active,
+    assigneeIds: Array.isArray(row.assignee_ids) ? row.assignee_ids : [],
+    createdAt: row.created_at,
+  };
+}
+
+function worksSqlHint(message: string) {
+  if (
+    message.includes("assignee_ids") ||
+    message.includes("public.works") ||
+    message.includes("relation") && message.includes("works") ||
+    message.includes("notify_work_event") ||
+    message.includes("schema cache")
+  ) {
+    return "Работы ещё не включены в базе. В Supabase откройте SQL Editor и выполните файл supabase/works.sql";
+  }
+  return message;
 }
 
 function nestedName(value: { name: string } | { name: string }[] | null | undefined) {
@@ -132,6 +158,95 @@ async function mapReceipt(
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
+}
+
+type WorkRow = {
+  id: string;
+  user_id: string;
+  created_by: string;
+  category_id: string | null;
+  title: string;
+  start_date: string | null;
+  end_date: string | null;
+  total_amount: number | string | null;
+  currency: string | null;
+  progress: WorkRecord["progress"];
+  status: WorkRecord["status"];
+  comment_text: string | null;
+  audio_url: string | null;
+  audio_transcription: string | null;
+  created_at: string;
+  updated_at: string;
+  profiles?: { name: string } | { name: string }[] | null;
+  work_categories?: { name: string } | { name: string }[] | null;
+  work_images?: { id: string; storage_path: string }[];
+};
+
+async function mapWork(
+  client: ReturnType<typeof createSupabaseBrowserClient>,
+  row: WorkRow,
+): Promise<WorkRecord> {
+  const images = await Promise.all(
+    (row.work_images ?? []).map(async (image) => ({
+      id: image.id,
+      path: image.storage_path,
+      url: (await signedUrl(client, "receipt-photos", image.storage_path)) ?? "",
+    })),
+  );
+  return {
+    id: row.id,
+    userId: row.user_id,
+    userName: nestedName(row.profiles) || "Мастер",
+    createdById: row.created_by,
+    categoryId: row.category_id ?? "",
+    categoryName: nestedName(row.work_categories) || "Без категории",
+    title: row.title,
+    startDate: row.start_date,
+    endDate: row.end_date,
+    totalAmount: row.total_amount === null ? null : Number(row.total_amount),
+    currency: row.currency ?? DEFAULT_CURRENCY,
+    progress: row.progress,
+    status: row.status,
+    commentText: row.comment_text,
+    audioUrl: await signedUrl(client, "receipt-audio", row.audio_url),
+    audioTranscription: row.audio_transcription,
+    images: images.filter((image) => image.url),
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+async function uploadWorkFiles(
+  client: ReturnType<typeof createSupabaseBrowserClient>,
+  ownerId: string,
+  workId: string,
+  photos: File[],
+  audio: Blob | null,
+) {
+  const { count } = await client
+    .from("work_images")
+    .select("id", { count: "exact", head: true })
+    .eq("work_id", workId);
+  const start = count ?? 0;
+  for (const [index, file] of photos.entries()) {
+    const path = `${ownerId}/works/${workId}/${start + index}-${file.name}`;
+    const { error: uploadError } = await client.storage.from("receipt-photos").upload(path, file, { upsert: false });
+    if (uploadError) throw uploadError;
+    const { error: rowError } = await client.from("work_images").insert({
+      work_id: workId,
+      storage_path: path,
+      sort_order: start + index,
+    });
+    if (rowError) throw rowError;
+  }
+  if (audio) {
+    const audioPath = `${ownerId}/works/${workId}/comment.webm`;
+    const { error: audioError } = await client.storage
+      .from("receipt-audio")
+      .upload(audioPath, audio, { upsert: true, contentType: audio.type || "audio/webm" });
+    if (audioError) throw audioError;
+    await client.from("works").update({ audio_url: audioPath }).eq("id", workId);
+  }
 }
 
 const receiptSelect = `
@@ -222,13 +337,7 @@ export function createSupabaseRepository(): AppRepository {
         .select("*")
         .order("created_at", { ascending: true });
       if (error) throw error;
-      return (data as CategoryRow[]).map((row) => ({
-        id: row.id,
-        name: row.name,
-        description: row.description ?? "",
-        isActive: row.is_active,
-        createdAt: row.created_at,
-      }));
+      return (data as CategoryRow[]).map(mapCategory);
     },
     async createCategory(input) {
       const { data, error } = await client
@@ -237,18 +346,12 @@ export function createSupabaseRepository(): AppRepository {
           name: input.name.trim(),
           description: input.description.trim(),
           is_active: input.isActive,
+          assignee_ids: input.assigneeIds,
         })
         .select("*")
         .single();
-      if (error) throw error;
-      const row = data as CategoryRow;
-      return {
-        id: row.id,
-        name: row.name,
-        description: row.description ?? "",
-        isActive: row.is_active,
-        createdAt: row.created_at,
-      };
+      if (error) throw new Error(worksSqlHint(error.message));
+      return mapCategory(data as CategoryRow);
     },
     async updateCategory(id, input) {
       const { data, error } = await client
@@ -257,19 +360,13 @@ export function createSupabaseRepository(): AppRepository {
           name: input.name.trim(),
           description: input.description.trim(),
           is_active: input.isActive,
+          assignee_ids: input.assigneeIds,
         })
         .eq("id", id)
         .select("*")
         .single();
-      if (error) throw error;
-      const row = data as CategoryRow;
-      return {
-        id: row.id,
-        name: row.name,
-        description: row.description ?? "",
-        isActive: row.is_active,
-        createdAt: row.created_at,
-      };
+      if (error) throw new Error(worksSqlHint(error.message));
+      return mapCategory(data as CategoryRow);
     },
     async deleteCategory(id) {
       const { error } = await client.from("work_categories").delete().eq("id", id);
@@ -301,6 +398,8 @@ export function createSupabaseRepository(): AppRepository {
     async createReceipt(input) {
       const session = await this.getSession();
       if (!session) throw new Error("Нужно войти в систему");
+      const categories = await this.listCategories();
+      assertCategoryAllowed(categories, session.role, session.id, input.categoryId);
       const { data: receipt, error } = await client
         .from("receipts")
         .insert({
@@ -309,11 +408,17 @@ export function createSupabaseRepository(): AppRepository {
           comment_text: input.commentText.trim() || null,
           audio_transcription: input.audioTranscript?.trim() || null,
           currency: DEFAULT_CURRENCY,
-          status: "pending_review",
+          status: session.role === "admin" ? "paid" : "pending_review",
         })
         .select("id")
         .single();
-      if (error || !receipt) throw error ?? new Error("Не удалось сохранить чек");
+      if (error || !receipt) {
+        const message = error?.message ?? "Не удалось сохранить чек";
+        if (message.toLowerCase().includes("row-level security") || message.includes("receipts_insert")) {
+          throw new Error("Заказчик пока не может сохранить чек. В Supabase ещё раз выполните файл supabase/works.sql");
+        }
+        throw error ?? new Error("Не удалось сохранить чек");
+      }
 
       const uploads = input.photos.map(async (file, index) => {
         const path = `${session.id}/${receipt.id}/${index}-${file.name}`;
@@ -341,7 +446,7 @@ export function createSupabaseRepository(): AppRepository {
 
       const created = await this.getReceipt(receipt.id);
       if (!created) throw new Error("Чек сохранён, но не удалось его прочитать");
-      await notifyReceiptEvent(client, created.id, "receipt_created");
+      if (session.role !== "admin") await notifyReceiptEvent(client, created.id, "receipt_created");
       await fetch(`/api/receipts/${created.id}/recognize`, { method: "POST" }).catch(() => undefined);
       return created;
     },
@@ -418,11 +523,127 @@ export function createSupabaseRepository(): AppRepository {
       }
       return updated;
     },
+    async listWorks(scope) {
+      let query = client
+        .from("works")
+        .select("*, profiles!works_user_id_fkey(name), work_categories(name), work_images(id, storage_path)")
+        .order("created_at", { ascending: false });
+      if (scope === "mine") {
+        const session = await this.getSession();
+        if (!session) return [];
+        query = query.eq("user_id", session.id);
+      }
+      const { data, error } = await query;
+      if (error) {
+        if (error.message.includes("works") || error.message.includes("schema cache")) return [];
+        throw new Error(worksSqlHint(error.message));
+      }
+      return Promise.all((data as WorkRow[]).map((row) => mapWork(client, row)));
+    },
+    async getWork(id) {
+      const { data, error } = await client
+        .from("works")
+        .select("*, profiles!works_user_id_fkey(name), work_categories(name), work_images(id, storage_path)")
+        .eq("id", id)
+        .maybeSingle();
+      if (error) throw new Error(worksSqlHint(error.message));
+      if (!data) return null;
+      return mapWork(client, data as WorkRow);
+    },
+    async createWork(input) {
+      const session = await this.getSession();
+      if (!session) throw new Error("Нужно войти в систему");
+      const categories = await this.listCategories();
+      const users = await this.listUsers();
+      const masterId = session.role === "admin" ? input.userId : session.id;
+      const master = users.find((user) => user.id === masterId && user.role === "builder");
+      if (!master) throw new Error("Выберите мастера");
+      const category = assertCategoryAllowed(categories, "builder", master.id, input.categoryId);
+      const { data: createdRow, error } = await client
+        .from("works")
+        .insert({
+          user_id: master.id,
+          created_by: session.id,
+          category_id: category.id,
+          title: input.title.trim(),
+          start_date: input.startDate,
+          end_date: input.endDate,
+          total_amount: input.totalAmount,
+          currency: DEFAULT_CURRENCY,
+          comment_text: input.commentText.trim() || null,
+          audio_transcription: input.audioTranscript?.trim() || null,
+        })
+        .select("id")
+        .single();
+      if (error || !createdRow) throw new Error(worksSqlHint(error?.message ?? "Не удалось сохранить работу"));
+      const workId = createdRow.id as string;
+      await uploadWorkFiles(client, master.id, workId, input.photos, input.audio);
+      await notifyWorkEvent(client, workId, session.role === "admin" ? "work_assigned" : "work_created");
+      const created = await this.getWork(workId);
+      if (!created) throw new Error("Работа сохранена, но не удалось её прочитать");
+      return created;
+    },
+    async updateWork(id, patch) {
+      const session = await this.getSession();
+      if (!session) throw new Error("Нужно войти в систему");
+      const current = await this.getWork(id);
+      if (!current) throw new Error("Работа не найдена");
+      if (session.role === "builder" && session.id !== current.userId) throw new Error("Это не ваша работа");
+      assertStatusChange(session.role, session.id, current, patch.status);
+      const detailKeys = ["title", "startDate", "endDate", "totalAmount", "commentText", "categoryId", "audioTranscription"] as const;
+      if (session.role === "builder" && detailKeys.some((key) => key in patch) && !builderMayDeleteWork(current)) {
+        throw new Error("Эту работу уже нельзя менять");
+      }
+      const changes: Record<string, unknown> = { updated_at: new Date().toISOString() };
+      if ("categoryId" in patch) changes.category_id = patch.categoryId;
+      if ("title" in patch) changes.title = patch.title?.trim();
+      if ("startDate" in patch) changes.start_date = patch.startDate;
+      if ("endDate" in patch) changes.end_date = patch.endDate;
+      if ("totalAmount" in patch) changes.total_amount = patch.totalAmount;
+      if ("commentText" in patch) changes.comment_text = patch.commentText;
+      if ("audioTranscription" in patch) changes.audio_transcription = patch.audioTranscription;
+      if ("progress" in patch) changes.progress = patch.progress;
+      if ("status" in patch) changes.status = patch.status;
+      const { error } = await client.from("works").update(changes).eq("id", id);
+      if (error) throw new Error(worksSqlHint(error.message));
+      if (patch.photos && patch.photos.length > 0) {
+        await uploadWorkFiles(client, current.userId, id, patch.photos, null);
+      }
+      if (patch.progress === "done" && current.progress !== "done") {
+        await notifyWorkEvent(client, id, "work_completed");
+      }
+      if (patch.status && patch.status !== current.status) {
+        const kind = notificationKindForChange(session.role, current.status, patch.status);
+        if (kind && kind !== "payment_confirmed") await notifyWorkEvent(client, id, kind);
+        if (current.status === "awaiting_confirmation") {
+          await client
+            .from("notifications")
+            .update({ read_at: new Date().toISOString() })
+            .eq("work_id", id)
+            .eq("kind", "payment_requested")
+            .is("read_at", null);
+        }
+      }
+      const updated = await this.getWork(id);
+      if (!updated) throw new Error("Работа не найдена");
+      return updated;
+    },
+    async deleteWork(id) {
+      const session = await this.getSession();
+      if (!session) throw new Error("Нужно войти в систему");
+      const work = await this.getWork(id);
+      if (!work) throw new Error("Работа не найдена");
+      if (session.role !== "admin" && (session.id !== work.userId || !builderMayDeleteWork(work))) {
+        throw new Error("Эту работу уже нельзя удалить");
+      }
+      const { error } = await client.from("works").delete().eq("id", id);
+      if (error) throw new Error(worksSqlHint(error.message));
+    },
     async listNotifications() {
       await closeStalePaymentRequests(client);
       const { data, error } = await client
         .from("notifications")
-        .select("id, user_id, receipt_id, kind, title, body, read_at, created_at")
+        .select("id, user_id, receipt_id, work_id, kind, title, body, read_at, created_at")
         .order("created_at", { ascending: false });
       if (error) return [];
       return (data ?? [])
@@ -430,7 +651,8 @@ export function createSupabaseRepository(): AppRepository {
         .map((row) => ({
         id: row.id as string,
         userId: row.user_id as string,
-        receiptId: row.receipt_id as string,
+        receiptId: (row.receipt_id as string | null) ?? null,
+        workId: (row.work_id as string | null) ?? null,
         kind: row.kind as AppNotification["kind"],
         title: row.title as string,
         body: row.body as string,
@@ -480,23 +702,50 @@ export function createSupabaseRepository(): AppRepository {
 }
 
 async function closeStalePaymentRequests(client: ReturnType<typeof createSupabaseBrowserClient>) {
-  const { data: requests } = await client
+  const withWork = await client
     .from("notifications")
-    .select("id, receipt_id")
+    .select("id, receipt_id, work_id")
     .eq("kind", "payment_requested")
     .is("read_at", null);
-  const rows = (requests ?? []) as Array<{ id: string; receipt_id: string }>;
+  const loaded = withWork.error
+    ? await client.from("notifications").select("id, receipt_id").eq("kind", "payment_requested").is("read_at", null)
+    : withWork;
+  const rows = (loaded.data ?? []) as Array<{ id: string; receipt_id: string | null; work_id?: string | null }>;
   if (rows.length === 0) return;
-  const receiptIds = [...new Set(rows.map((row) => row.receipt_id))];
-  const { data: receipts } = await client.from("receipts").select("id, status").in("id", receiptIds);
+  const receiptIds = [...new Set(rows.map((row) => row.receipt_id).filter(Boolean))] as string[];
+  const workIds = [...new Set(rows.map((row) => row.work_id).filter(Boolean))] as string[];
+  const { data: receipts } = receiptIds.length
+    ? await client.from("receipts").select("id, status").in("id", receiptIds)
+    : { data: [] };
+  const { data: works } = workIds.length
+    ? await client.from("works").select("id, status").in("id", workIds)
+    : { data: [] };
   const stillWaiting = new Set(
-    ((receipts ?? []) as Array<{ id: string; status: string }>)
-      .filter((receipt) => receipt.status === "awaiting_confirmation")
-      .map((receipt) => receipt.id),
+    [...((receipts ?? []) as Array<{ id: string; status: string }>), ...((works ?? []) as Array<{ id: string; status: string }>)]
+      .filter((row) => row.status === "awaiting_confirmation")
+      .map((row) => row.id),
   );
-  const staleIds = rows.filter((row) => !stillWaiting.has(row.receipt_id)).map((row) => row.id);
+  const staleIds = rows
+    .filter((row) => !stillWaiting.has(row.receipt_id ?? "") && !stillWaiting.has(row.work_id ?? ""))
+    .map((row) => row.id);
   if (staleIds.length === 0) return;
   await client.from("notifications").update({ read_at: new Date().toISOString() }).in("id", staleIds);
+}
+
+async function notifyWorkEvent(
+  client: ReturnType<typeof createSupabaseBrowserClient>,
+  workId: string,
+  kind: AppNotification["kind"],
+) {
+  const { error } = await client.rpc("notify_work_event", {
+    target_work: workId,
+    event_kind: kind,
+  });
+  if (!error) return;
+  if (error.message.includes("notify_work_event") || error.message.includes("schema cache")) {
+    throw new Error("Запись сохранена, но уведомление не ушло. Выполните файл supabase/works.sql в SQL Editor Supabase.");
+  }
+  throw new Error(error.message);
 }
 
 function explainReceiptWriteError(message: string) {

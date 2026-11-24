@@ -2,21 +2,22 @@
 
 import { useApp } from "@/components/app-provider";
 import { NewReceiptForm } from "@/components/new-receipt-form";
+import { categoriesForProfile } from "@/lib/categories";
 import type { WorkCategory } from "@/types";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 export default function NewReceiptPage() {
-  const { repo, isDemo } = useApp();
+  const { repo, isDemo, profile } = useApp();
   const router = useRouter();
   const [categories, setCategories] = useState<WorkCategory[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState("");
 
   useEffect(() => {
-    void repo.listCategories().then(setCategories);
-  }, [repo]);
+    void repo.listCategories().then((items) => setCategories(categoriesForProfile(items, profile)));
+  }, [profile, repo]);
 
   return (
     <div className="mx-auto max-w-xl space-y-6">

@@ -1,5 +1,6 @@
 import { statusAfterRecognition } from "@/lib/ai/assess";
 import { recognizeReceiptPhotos } from "@/lib/ai/client";
+import { assertCategoryAllowed } from "@/lib/categories";
 import { DEFAULT_CURRENCY, toAuthEmail } from "@/lib/config";
 import { fileToDataUrl } from "@/lib/files";
 import {
@@ -8,9 +9,9 @@ import {
   demoReceipts,
   demoUsers,
 } from "@/lib/demo/seed";
-import { assertStatusChange, builderMayDeleteReceipt, notificationKindForChange, notificationText } from "@/lib/payments";
+import { assertStatusChange, builderMayDeleteReceipt, builderMayDeleteWork, notificationKindForChange, notificationText, workNotificationText } from "@/lib/payments";
 import type { AppRepository } from "@/lib/data/repository";
-import type { AppNotification, NotificationKind, Profile, Receipt, WorkCategory } from "@/types";
+import type { AppNotification, NotificationKind, Profile, Receipt, WorkCategory, WorkRecord } from "@/types";
 
 const DEMO_VERSION = "4";
 
@@ -20,6 +21,7 @@ const KEYS = {
   session: "otchet.session",
   categories: "otchet.categories",
   receipts: "otchet.receipts",
+  works: "otchet.works",
   payments: "otchet.payments",
   notifications: "otchet.notifications",
 };
@@ -145,7 +147,10 @@ export function createDemoRepository(): AppRepository {
     },
     async listCategories() {
       ensureSeed();
-      return readJson<WorkCategory[]>(KEYS.categories, demoCategories);
+      return readJson<WorkCategory[]>(KEYS.categories, demoCategories).map((category) => ({
+        ...category,
+        assigneeIds: category.assigneeIds ?? [],
+      }));
     },
     async createCategory(input) {
       const categories = await this.listCategories();
@@ -154,6 +159,7 @@ export function createDemoRepository(): AppRepository {
         name: input.name.trim(),
         description: input.description.trim(),
         isActive: input.isActive,
+        assigneeIds: input.assigneeIds,
         createdAt: new Date().toISOString(),
       };
       writeJson(KEYS.categories, [...categories, category]);
@@ -168,6 +174,7 @@ export function createDemoRepository(): AppRepository {
               name: input.name.trim(),
               description: input.description.trim(),
               isActive: input.isActive,
+              assigneeIds: input.assigneeIds,
             }
           : category,
       );
@@ -215,12 +222,8 @@ export function createDemoRepository(): AppRepository {
     async createReceipt(input) {
       const session = await this.getSession();
       if (!session) throw new Error("Нужно войти в систему");
-      if (session.role !== "builder") {
-        throw new Error("Новые чеки добавляет строитель");
-      }
       const categories = await this.listCategories();
-      const category = categories.find((item) => item.id === input.categoryId);
-      if (!category) throw new Error("Выберите вид работ");
+      const category = assertCategoryAllowed(categories, session.role, session.id, input.categoryId);
       const photos = await Promise.all(
         input.photos.map(async (file) => ({
           id: crypto.randomUUID(),
@@ -239,7 +242,7 @@ export function createDemoRepository(): AppRepository {
         receiptNumber: null,
         totalAmount: null,
         currency: DEFAULT_CURRENCY,
-        status: "pending_review",
+        status: session.role === "admin" ? "paid" : "pending_review",
         commentText: input.commentText.trim() || null,
         audioUrl: input.audio ? await fileToDataUrl(input.audio) : null,
         audioTranscription: input.audioTranscript?.trim() || null,
@@ -251,8 +254,10 @@ export function createDemoRepository(): AppRepository {
       };
       const receipts = readJson<Receipt[]>(KEYS.receipts, demoReceipts);
       writeJson(KEYS.receipts, [receipt, ...receipts]);
-      const users = readJson<StoredUser[]>(KEYS.users, demoUsers);
-      notifyUsers(users.filter((user) => user.role === "admin").map((user) => user.id), "receipt_created", receipt);
+      if (session.role !== "admin") {
+        const users = readJson<StoredUser[]>(KEYS.users, demoUsers);
+        notifyUsers(users.filter((user) => user.role === "admin").map((user) => user.id), "receipt_created", receipt);
+      }
       void fillDemoRecognition(receipt.id, input.photos);
       return receipt;
     },
@@ -316,6 +321,136 @@ export function createDemoRepository(): AppRepository {
         if (current.status === "awaiting_confirmation") closePaymentRequests(updated.id);
       }
       return updated;
+    },
+    async listWorks(scope) {
+      ensureSeed();
+      const categories = await this.listCategories();
+      const works = readJson<WorkRecord[]>(KEYS.works, []).map((work) => ({
+        ...work,
+        categoryName: categories.find((category) => category.id === work.categoryId)?.name ?? work.categoryName,
+      }));
+      const sorted = works.sort((left, right) => right.createdAt.localeCompare(left.createdAt));
+      if (scope === "all") return sorted;
+      const session = await this.getSession();
+      return sorted.filter((work) => work.userId === session?.id);
+    },
+    async getWork(id) {
+      const works = await this.listWorks("all");
+      const work = works.find((item) => item.id === id) ?? null;
+      const session = await this.getSession();
+      if (!work || !session) return null;
+      if (session.role === "builder" && work.userId !== session.id) return null;
+      return work;
+    },
+    async createWork(input) {
+      const session = await this.getSession();
+      if (!session) throw new Error("Нужно войти в систему");
+      const categories = await this.listCategories();
+      const users = readJson<StoredUser[]>(KEYS.users, demoUsers);
+      const masterId = session.role === "admin" ? input.userId : session.id;
+      const master = users.find((user) => user.id === masterId && user.role === "builder");
+      if (!master) throw new Error("Выберите мастера");
+      const category = assertCategoryAllowed(categories, "builder", master.id, input.categoryId);
+      if (!category.assigneeIds.includes(master.id)) throw new Error("Этот вид работ не назначен выбранному мастеру");
+      const photos = await Promise.all(
+        input.photos.map(async (file) => ({ id: crypto.randomUUID(), url: await fileToDataUrl(file) })),
+      );
+      const now = new Date().toISOString();
+      const work: WorkRecord = {
+        id: crypto.randomUUID(),
+        userId: master.id,
+        userName: master.name,
+        createdById: session.id,
+        categoryId: category.id,
+        categoryName: category.name,
+        title: input.title.trim(),
+        startDate: input.startDate,
+        endDate: input.endDate,
+        totalAmount: input.totalAmount,
+        currency: DEFAULT_CURRENCY,
+        progress: "planned",
+        status: "unpaid",
+        commentText: input.commentText.trim() || null,
+        audioUrl: input.audio ? await fileToDataUrl(input.audio) : null,
+        audioTranscription: input.audioTranscript?.trim() || null,
+        images: photos,
+        createdAt: now,
+        updatedAt: now,
+      };
+      writeJson(KEYS.works, [work, ...readJson<WorkRecord[]>(KEYS.works, [])]);
+      if (session.role === "admin") notifyAboutWork([master.id], "work_assigned", work);
+      else notifyAboutWork(users.filter((user) => user.role === "admin").map((user) => user.id), "work_created", work);
+      return work;
+    },
+    async updateWork(id, patch) {
+      const session = await this.getSession();
+      if (!session) throw new Error("Нужно войти в систему");
+      const works = readJson<WorkRecord[]>(KEYS.works, []);
+      const current = works.find((work) => work.id === id);
+      if (!current) throw new Error("Работа не найдена");
+      if (session.role === "builder" && session.id !== current.userId) throw new Error("Это не ваша работа");
+      assertStatusChange(session.role, session.id, current, patch.status);
+      if (session.role === "builder" && patch.progress && patch.progress !== current.progress && patch.progress !== "done") {
+        throw new Error("Можно только отметить работу выполненной");
+      }
+      const details = ["title", "startDate", "endDate", "totalAmount", "commentText", "categoryId", "audioTranscription"] as const;
+      const changesDetails = details.some((key) => key in patch);
+      if (session.role === "builder" && changesDetails && !builderMayDeleteWork(current)) {
+        throw new Error("Эту работу уже нельзя менять");
+      }
+      const categories = await this.listCategories();
+      const extraPhotos = patch.photos
+        ? await Promise.all(patch.photos.map(async (file) => ({ id: crypto.randomUUID(), url: await fileToDataUrl(file) })))
+        : [];
+      const next = works.map((work) => {
+        if (work.id !== id) return work;
+        const category = patch.categoryId ? categories.find((item) => item.id === patch.categoryId) : null;
+        const nextWork: WorkRecord = {
+          ...work,
+          title: patch.title ?? work.title,
+          startDate: "startDate" in patch ? patch.startDate ?? null : work.startDate,
+          endDate: "endDate" in patch ? patch.endDate ?? null : work.endDate,
+          totalAmount: "totalAmount" in patch ? patch.totalAmount ?? null : work.totalAmount,
+          commentText: "commentText" in patch ? patch.commentText ?? null : work.commentText,
+          audioTranscription: "audioTranscription" in patch ? patch.audioTranscription ?? null : work.audioTranscription,
+          categoryId: patch.categoryId ?? work.categoryId,
+          progress: patch.progress ?? work.progress,
+          status: patch.status ?? work.status,
+          images: [...work.images, ...extraPhotos],
+          categoryName: category?.name ?? work.categoryName,
+          updatedAt: new Date().toISOString(),
+        };
+        return nextWork;
+      });
+      writeJson(KEYS.works, next);
+      const updated = next.find((work) => work.id === id);
+      if (!updated) throw new Error("Работа не найдена");
+      const users = readJson<StoredUser[]>(KEYS.users, demoUsers);
+      if (patch.progress === "done" && current.progress !== "done") {
+        notifyAboutWork(users.filter((user) => user.role === "admin").map((user) => user.id), "work_completed", updated);
+      }
+      if (patch.status && patch.status !== current.status) {
+        const kind = notificationKindForChange(session.role, current.status, patch.status);
+        if (kind === "payment_requested" || kind === "payment_cancelled") notifyAboutWork([updated.userId], kind, updated);
+        if (kind === "payment_rejected") {
+          notifyAboutWork(users.filter((user) => user.role === "admin").map((user) => user.id), kind, updated);
+        }
+        if (current.status === "awaiting_confirmation") closePaymentRequests(null, updated.id);
+      }
+      return updated;
+    },
+    async deleteWork(id) {
+      const session = await this.getSession();
+      if (!session) throw new Error("Нужно войти в систему");
+      const works = readJson<WorkRecord[]>(KEYS.works, []);
+      const current = works.find((work) => work.id === id);
+      if (!current) throw new Error("Работа не найдена");
+      if (session.role !== "admin" && (session.id !== current.userId || !builderMayDeleteWork(current))) {
+        throw new Error("Эту работу уже нельзя удалить");
+      }
+      writeJson(KEYS.works, works.filter((work) => work.id !== id));
+      const notes = readJson<AppNotification[]>(KEYS.notifications, []);
+      writeJson(KEYS.notifications, notes.filter((item) => item.workId !== id));
     },
     async listNotifications() {
       const session = await this.getSession();
@@ -381,6 +516,7 @@ export function resetDemoData() {
   localStorage.removeItem(KEYS.session);
   localStorage.removeItem(KEYS.categories);
   localStorage.removeItem(KEYS.receipts);
+  localStorage.removeItem(KEYS.works);
   localStorage.removeItem(KEYS.payments);
   localStorage.removeItem(KEYS.notifications);
   void DEMO_ADMIN_ID;
@@ -388,32 +524,43 @@ export function resetDemoData() {
 
 function closeStalePaymentRequests() {
   const receipts = readJson<Receipt[]>(KEYS.receipts, demoReceipts);
-  const open = new Set(
+  const works = readJson<WorkRecord[]>(KEYS.works, []);
+  const openReceipts = new Set(
     receipts.filter((receipt) => receipt.status === "awaiting_confirmation").map((receipt) => receipt.id),
+  );
+  const openWorks = new Set(
+    works.filter((work) => work.status === "awaiting_confirmation").map((work) => work.id),
   );
   const items = readJson<AppNotification[]>(KEYS.notifications, []);
   const stale = items.some(
-    (item) => item.kind === "payment_requested" && !item.readAt && !open.has(item.receiptId),
+    (item) =>
+      item.kind === "payment_requested" &&
+      !item.readAt &&
+      ((item.receiptId && !openReceipts.has(item.receiptId)) || (item.workId && !openWorks.has(item.workId))),
   );
   if (!stale) return;
   const now = new Date().toISOString();
   writeJson(
     KEYS.notifications,
     items.map((item) =>
-      item.kind === "payment_requested" && !item.readAt && !open.has(item.receiptId)
+      item.kind === "payment_requested" &&
+      !item.readAt &&
+      ((item.receiptId && !openReceipts.has(item.receiptId)) || (item.workId && !openWorks.has(item.workId)))
         ? { ...item, readAt: now }
         : item,
     ),
   );
 }
 
-function closePaymentRequests(receiptId: string) {
+function closePaymentRequests(receiptId: string | null, workId: string | null = null) {
   const now = new Date().toISOString();
   const items = readJson<AppNotification[]>(KEYS.notifications, []);
   writeJson(
     KEYS.notifications,
     items.map((item) =>
-      item.receiptId === receiptId && item.kind === "payment_requested" && !item.readAt
+      item.kind === "payment_requested" &&
+      !item.readAt &&
+      ((receiptId && item.receiptId === receiptId) || (workId && item.workId === workId))
         ? { ...item, readAt: now }
         : item,
     ),
@@ -462,6 +609,26 @@ async function fillDemoRecognition(receiptId: string, photos: File[]) {
   );
 }
 
+function notifyAboutWork(userIds: string[], kind: NotificationKind, work: WorkRecord) {
+  const text = workNotificationText(kind, work);
+  const now = new Date().toISOString();
+  const items = readJson<AppNotification[]>(KEYS.notifications, []);
+  writeJson(KEYS.notifications, [
+    ...userIds.map((userId) => ({
+      id: crypto.randomUUID(),
+      userId,
+      receiptId: null,
+      workId: work.id,
+      kind,
+      title: text.title,
+      body: text.body,
+      readAt: null,
+      createdAt: now,
+    })),
+    ...items,
+  ]);
+}
+
 function notifyUsers(userIds: string[], kind: NotificationKind, receipt: Receipt) {
   const text = notificationText(kind, receipt);
   const now = new Date().toISOString();
@@ -471,6 +638,7 @@ function notifyUsers(userIds: string[], kind: NotificationKind, receipt: Receipt
       id: crypto.randomUUID(),
       userId,
       receiptId: receipt.id,
+      workId: null,
       kind,
       title: text.title,
       body: text.body,

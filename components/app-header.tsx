@@ -10,20 +10,19 @@ import { usePathname, useRouter } from "next/navigation";
 import { LogOut } from "lucide-react";
 
 const adminLinks = [
-  { href: "/admin", label: "Чеки" },
+  { href: "/admin", label: "Сводка" },
   { href: "/admin/analytics", label: "Аналитика" },
   { href: "/admin/categories", label: "Виды работ" },
   { href: "/admin/team", label: "Команда" },
 ];
 
 const builderLinks = [
-  { href: "/builder", label: "Мои чеки" },
-  { href: "/builder/new", label: "Добавить чек" },
+  { href: "/builder", label: "Мои записи" },
 ];
 
 function linkIsActive(href: string, pathname: string) {
-  if (href === "/admin") return pathname === "/admin" || pathname.startsWith("/admin/receipts");
-  if (href === "/builder") return pathname === "/builder" || pathname.startsWith("/builder/receipts");
+  if (href === "/admin") return pathname === "/admin" || pathname.startsWith("/admin/receipts") || pathname.startsWith("/admin/works");
+  if (href === "/builder") return pathname === "/builder" || pathname.startsWith("/builder/");
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
@@ -39,10 +38,10 @@ export function AppHeader() {
   }
 
   return (
-    <header className="sticky top-0 z-20 border-b bg-background/90 backdrop-blur">
+    <header className="sticky top-0 z-20 border-b bg-white">
       <div className="mx-auto flex max-w-6xl items-center gap-3 px-4 py-3">
-        <Link href={profile?.role === "admin" ? "/admin" : "/builder"} className="inline-flex size-10 shrink-0 overflow-hidden" aria-label={APP_NAME}>
-          <img src="/logo.jpg" alt="" className="size-10 scale-[1.7] object-cover" />
+        <Link href={profile?.role === "admin" ? "/admin" : "/builder"} className="shrink-0 text-2xl font-extrabold tracking-tight text-foreground" aria-label={APP_NAME}>
+          <span className="text-primary">Zhol</span>Build
         </Link>
         <nav className="hidden items-center gap-1 md:flex">
           {links.map((link) => {
@@ -52,7 +51,7 @@ export function AppHeader() {
                 key={link.href}
                 href={link.href}
                 className={`rounded-lg px-3 py-1.5 text-sm ${
-                  active ? "bg-muted font-medium" : "text-muted-foreground hover:text-foreground"
+                  active ? "bg-accent font-medium text-accent-foreground" : "text-muted-foreground hover:bg-muted hover:text-foreground"
                 }`}
               >
                 {link.label}
@@ -90,8 +89,8 @@ export function AppHeader() {
             <Link
               key={link.href}
               href={link.href}
-              className={`rounded-full px-3 py-1 text-sm whitespace-nowrap ${
-                active ? "bg-foreground text-background" : "bg-muted text-muted-foreground"
+              className={`rounded-lg px-3 py-1 text-sm whitespace-nowrap ${
+                active ? "bg-accent font-medium text-accent-foreground" : "bg-muted text-muted-foreground"
               }`}
             >
               {link.label}

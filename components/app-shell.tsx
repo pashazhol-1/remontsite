@@ -14,7 +14,7 @@ export function AppShell({
 }) {
   return (
     <RequireAuth role={role}>
-      <div className="min-h-screen bg-[#f7f6f3]">
+      <div className="min-h-screen bg-white">
         <AppHeader />
         <main className="mx-auto w-full max-w-6xl px-4 py-6">{children}</main>
       </div>

@@ -17,12 +17,14 @@ export function DeleteReceiptDialog({
   receipt,
   open,
   pending,
+  subject,
   onOpenChange,
   onConfirm,
 }: {
   receipt: Receipt | null;
   open: boolean;
   pending: boolean;
+  subject?: string;
   onOpenChange: (open: boolean) => void;
   onConfirm: () => void;
 }) {
@@ -36,9 +38,11 @@ export function DeleteReceiptDialog({
     <Dialog open={open} onOpenChange={(next) => !pending && onOpenChange(next)}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Удалить чек?</DialogTitle>
+          <DialogTitle>{subject ? "Удалить работу?" : "Удалить чек?"}</DialogTitle>
           <DialogDescription>
-            {`Чек «${name}»${amount} будет удалён вместе с фото. Вернуть его нельзя.`}
+            {subject
+              ? `Работа «${subject}» будет удалена вместе с фото. Вернуть её нельзя.`
+              : `Чек «${name}»${amount} будет удалён вместе с фото. Вернуть его нельзя.`}
           </DialogDescription>
         </DialogHeader>
         <DialogFooter>

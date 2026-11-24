@@ -7,12 +7,16 @@ export type NotificationKind =
   | "payment_requested"
   | "payment_confirmed"
   | "payment_rejected"
-  | "payment_cancelled";
+  | "payment_cancelled"
+  | "work_created"
+  | "work_completed"
+  | "work_assigned";
 
 export type AppNotification = {
   id: string;
   userId: string;
-  receiptId: string;
+  receiptId: string | null;
+  workId: string | null;
   kind: NotificationKind;
   title: string;
   body: string;
@@ -34,7 +38,58 @@ export type WorkCategory = {
   name: string;
   description: string;
   isActive: boolean;
+  assigneeIds: string[];
   createdAt: string;
+};
+
+export type WorkProgress = "planned" | "done";
+
+export type WorkRecord = {
+  id: string;
+  userId: string;
+  userName: string;
+  createdById: string;
+  categoryId: string;
+  categoryName: string;
+  title: string;
+  startDate: string | null;
+  endDate: string | null;
+  totalAmount: number | null;
+  currency: string;
+  progress: WorkProgress;
+  status: ReceiptStatus;
+  commentText: string | null;
+  audioUrl: string | null;
+  audioTranscription: string | null;
+  images: ReceiptImage[];
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type CreateWorkInput = {
+  userId?: string;
+  categoryId: string;
+  title: string;
+  startDate: string | null;
+  endDate: string | null;
+  totalAmount: number | null;
+  commentText: string;
+  photos: File[];
+  audio: Blob | null;
+  audioTranscript: string | null;
+};
+
+export type WorkPatch = {
+  categoryId?: string;
+  title?: string;
+  startDate?: string | null;
+  endDate?: string | null;
+  totalAmount?: number | null;
+  commentText?: string | null;
+  audioTranscription?: string | null;
+  progress?: WorkProgress;
+  status?: ReceiptStatus;
+  photos?: File[];
 };
 
 export type ReceiptImage = {
@@ -107,4 +162,5 @@ export type CategoryInput = {
   name: string;
   description: string;
   isActive: boolean;
+  assigneeIds: string[];
 };

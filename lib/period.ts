@@ -45,7 +45,10 @@ export function matchesPeriod(receipt: Pick<Receipt, "receiptDate" | "createdAt"
   return true;
 }
 
-export function moneyOf(receipts: Receipt[], status?: Receipt["status"]) {
+export function moneyOf(
+  receipts: Array<Pick<Receipt, "totalAmount" | "status">>,
+  status?: Receipt["status"],
+) {
   return receipts
     .filter((receipt) => (status ? receipt.status === status : true))
     .reduce((sum, receipt) => sum + (receipt.totalAmount ?? 0), 0);

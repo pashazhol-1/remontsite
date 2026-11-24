@@ -46,17 +46,17 @@ export const demoUsers: Array<Profile & { password: string }> = [
 ];
 
 export const demoCategories: WorkCategory[] = [
-  { id: "cat-plaster", name: "Штукатурка стен", description: "Черновая и чистовая штукатурка", isActive: true, createdAt: "2026-10-01T09:00:00.000Z" },
-  { id: "cat-putty", name: "Шпаклёвка", description: "", isActive: true, createdAt: "2026-10-01T09:00:00.000Z" },
-  { id: "cat-electric", name: "Электрика", description: "", isActive: true, createdAt: "2026-10-01T09:00:00.000Z" },
-  { id: "cat-plumbing", name: "Сантехника", description: "", isActive: true, createdAt: "2026-10-01T09:00:00.000Z" },
-  { id: "cat-floor", name: "Стяжка пола", description: "", isActive: true, createdAt: "2026-10-01T09:00:00.000Z" },
-  { id: "cat-tile", name: "Плиточные работы", description: "", isActive: true, createdAt: "2026-10-01T09:00:00.000Z" },
-  { id: "cat-ceiling", name: "Монтаж потолков", description: "", isActive: true, createdAt: "2026-10-01T09:00:00.000Z" },
-  { id: "cat-bath", name: "Отделка ванной", description: "", isActive: true, createdAt: "2026-10-01T09:00:00.000Z" },
-  { id: "cat-kitchen", name: "Отделка кухни", description: "", isActive: true, createdAt: "2026-10-01T09:00:00.000Z" },
-  { id: "cat-hall", name: "Отделка коридора", description: "", isActive: true, createdAt: "2026-10-01T09:00:00.000Z" },
-  { id: "cat-other", name: "Прочее", description: "", isActive: true, createdAt: "2026-10-01T09:00:00.000Z" },
+  { id: "cat-plaster", name: "Штукатурка стен", description: "Черновая и чистовая штукатурка", isActive: true, assigneeIds: [DEMO_BUILDER_ID], createdAt: "2026-10-01T09:00:00.000Z" },
+  { id: "cat-putty", name: "Шпаклёвка", description: "", isActive: true, assigneeIds: [DEMO_BUILDER_ID], createdAt: "2026-10-01T09:00:00.000Z" },
+  { id: "cat-electric", name: "Электрика", description: "", isActive: true, assigneeIds: [DEMO_BUILDER_ID], createdAt: "2026-10-01T09:00:00.000Z" },
+  { id: "cat-plumbing", name: "Сантехника", description: "", isActive: true, assigneeIds: [DEMO_BUILDER_ID], createdAt: "2026-10-01T09:00:00.000Z" },
+  { id: "cat-floor", name: "Стяжка пола", description: "", isActive: true, assigneeIds: [DEMO_BUILDER_ID], createdAt: "2026-10-01T09:00:00.000Z" },
+  { id: "cat-tile", name: "Плиточные работы", description: "", isActive: true, assigneeIds: [DEMO_BUILDER_ID], createdAt: "2026-10-01T09:00:00.000Z" },
+  { id: "cat-ceiling", name: "Монтаж потолков", description: "", isActive: true, assigneeIds: [DEMO_BUILDER_ID], createdAt: "2026-10-01T09:00:00.000Z" },
+  { id: "cat-bath", name: "Отделка ванной", description: "", isActive: true, assigneeIds: [DEMO_BUILDER_ID], createdAt: "2026-10-01T09:00:00.000Z" },
+  { id: "cat-kitchen", name: "Отделка кухни", description: "", isActive: true, assigneeIds: [DEMO_BUILDER_ID], createdAt: "2026-10-01T09:00:00.000Z" },
+  { id: "cat-hall", name: "Отделка коридора", description: "", isActive: true, assigneeIds: [DEMO_BUILDER_ID], createdAt: "2026-10-01T09:00:00.000Z" },
+  { id: "cat-other", name: "Прочее", description: "", isActive: true, assigneeIds: [DEMO_BUILDER_ID], createdAt: "2026-10-01T09:00:00.000Z" },
 ];
 
 export const demoReceipts: Receipt[] = [

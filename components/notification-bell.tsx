@@ -44,14 +44,20 @@ export function NotificationBell() {
       );
     }
     setOpen(false);
-    router.push(profile?.role === "admin" ? `/admin/receipts/${item.receiptId}` : `/builder/receipts/${item.receiptId}`);
+    const role = profile?.role === "admin" ? "admin" : "builder";
+    if (item.workId) router.push(`/${role}/works/${item.workId}`);
+    else if (item.receiptId) router.push(`/${role}/receipts/${item.receiptId}`);
   }
 
   async function answer(item: AppNotification, accept: boolean) {
     setBusyId(item.id);
     try {
-      const updated = await repo.updateReceipt(item.receiptId, { status: accept ? "paid" : "unpaid" });
-      window.dispatchEvent(new CustomEvent<Receipt>("otchet-receipt-updated", { detail: updated }));
+      const status = accept ? "paid" : "unpaid";
+      if (item.workId) await repo.updateWork(item.workId, { status });
+      else {
+        const updated = await repo.updateReceipt(item.receiptId ?? "", { status });
+        window.dispatchEvent(new CustomEvent<Receipt>("otchet-receipt-updated", { detail: updated }));
+      }
       if (!item.readAt) await repo.markNotificationRead(item.id);
       toast.success(accept ? "Оплата подтверждена" : "Оплата не подтверждена");
       await load();
@@ -90,7 +96,7 @@ export function NotificationBell() {
           <p className="text-sm text-muted-foreground">{unread ? `${unread} новых` : "Новых нет"}</p>
         </div>
         <div className="flex-1 space-y-2 overflow-y-auto px-4 pb-4">
-          {unreadItems.length === 0 ? <p className="text-sm text-muted-foreground">Здесь появятся новые чеки и оплаты.</p> : null}
+          {unreadItems.length === 0 ? <p className="text-sm text-muted-foreground">Здесь появятся новые чеки, работы и оплаты.</p> : null}
           {unreadItems.map((item) => (
             <div key={item.id} className="rounded-xl border bg-emerald-50 p-3">
               <button type="button" className="w-full text-left" onClick={() => void openReceipt(item)}>

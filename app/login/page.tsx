@@ -5,7 +5,7 @@ import { resetDemoData } from "@/lib/demo/repository";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { APP_NAME, APP_TAGLINE } from "@/lib/config";
+import { APP_TAGLINE } from "@/lib/config";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -49,12 +49,12 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[#f7f6f3] px-4 py-10">
-      <div className="w-full max-w-md rounded-2xl border bg-white p-6 shadow-sm">
+    <div className="flex min-h-screen items-center justify-center bg-white px-4 py-10">
+      <div className="w-full max-w-md rounded-2xl border bg-white p-7 shadow-sm">
         <div className="mb-6">
-          <span className="mb-3 inline-flex size-16 overflow-hidden">
-            <img src="/logo.jpg" alt={APP_NAME} className="size-16 scale-[1.7] object-cover" />
-          </span>
+          <p className="mb-3 text-3xl font-extrabold tracking-tight text-foreground">
+            <span className="text-primary">Zhol</span>Build
+          </p>
           <p className="text-muted-foreground">{APP_TAGLINE}</p>
         </div>
 
@@ -84,6 +84,7 @@ export default function LoginPage() {
               value={login}
               onChange={(event) => setLogin(event.target.value)}
               placeholder="ivan или ivan@email.com"
+              className="bg-white"
               required
             />
           </div>
@@ -95,6 +96,7 @@ export default function LoginPage() {
               autoComplete="current-password"
               value={password}
               onChange={(event) => setPassword(event.target.value)}
+              className="bg-white"
               required
             />
           </div>

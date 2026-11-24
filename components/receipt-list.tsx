@@ -150,17 +150,17 @@ export function ReceiptList({
               </div>
             ))}
           </div>
-          <div className="hidden overflow-hidden rounded-xl border md:block">
+          <div className="hidden overflow-hidden rounded-xl border bg-white md:block">
             <table className="w-full text-sm">
-              <thead className="bg-muted/60 text-left">
+              <thead className="bg-muted text-left text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">
                 <tr>
-                  <th className="px-4 py-3 font-medium">Дата</th>
-                  <th className="px-4 py-3 font-medium">Магазин</th>
-                  <th className="px-4 py-3 font-medium">Вид работ</th>
-                  <th className="px-4 py-3 font-medium">Строитель</th>
-                  <th className="px-4 py-3 font-medium">Сумма</th>
-                  <th className="px-4 py-3 font-medium">Статус</th>
-                  {onDelete ? <th className="px-4 py-3 font-medium"><span className="sr-only">Удаление</span></th> : null}
+                  <th className="px-4 py-3">Дата</th>
+                  <th className="px-4 py-3">Магазин</th>
+                  <th className="px-4 py-3">Вид работ</th>
+                  <th className="px-4 py-3">Строитель</th>
+                  <th className="px-4 py-3">Сумма</th>
+                  <th className="px-4 py-3">Статус</th>
+                  {onDelete ? <th className="px-4 py-3"><span className="sr-only">Удаление</span></th> : null}
                 </tr>
               </thead>
               <tbody>
@@ -170,25 +170,26 @@ export function ReceiptList({
                     className="cursor-pointer border-t hover:bg-muted/40"
                     onClick={() => router.push(hrefFor(receipt))}
                   >
-                    <td className="px-4 py-3">{formatDate(receipt.receiptDate || receipt.createdAt)}</td>
-                    <td className="px-4 py-3 font-medium">
+                    <td className="px-4 py-3.5 text-muted-foreground">{formatDate(receipt.receiptDate || receipt.createdAt)}</td>
+                    <td className="px-4 py-3.5 font-medium">
                       <Link href={hrefFor(receipt)} className="hover:underline" onClick={(event) => event.stopPropagation()}>
                         {receipt.storeName || "Магазин не указан"}
                       </Link>
                     </td>
-                    <td className="px-4 py-3">{receipt.categoryName}</td>
-                    <td className="px-4 py-3">{receipt.userName}</td>
-                    <td className="px-4 py-3">{formatMoney(receipt.totalAmount, receipt.currency)}</td>
-                    <td className="px-4 py-3">
+                    <td className="px-4 py-3.5">{receipt.categoryName}</td>
+                    <td className="px-4 py-3.5">{receipt.userName}</td>
+                    <td className="px-4 py-3.5 font-medium">{formatMoney(receipt.totalAmount, receipt.currency)}</td>
+                    <td className="px-4 py-3.5">
                       <StatusBadge status={receipt.status} />
                     </td>
                     {onDelete ? (
-                      <td className="px-4 py-3 text-right">
+                      <td className="px-4 py-3.5 text-right">
                         {canDelete(receipt) ? (
                           <Button
                             type="button"
-                            variant="destructive"
+                            variant="ghost"
                             size="icon"
+                            className="text-muted-foreground hover:text-destructive"
                             aria-label="Удалить чек"
                             disabled={deletingId === receipt.id}
                             onClick={(event) => {
@@ -241,7 +242,7 @@ function IconSelect({
       <Icon className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
       <select
         aria-label={label}
-        className="h-8 w-full rounded-lg border bg-white pr-2 pl-8 text-sm"
+        className="h-9 w-full rounded-xl border bg-white pr-2 pl-8 text-sm"
         value={value}
         onChange={(event) => onChange(event.target.value)}
       >

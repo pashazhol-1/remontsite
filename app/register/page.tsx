@@ -4,7 +4,6 @@ import { useApp } from "@/components/app-provider";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { APP_NAME } from "@/lib/config";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -42,16 +41,16 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[#f7f6f3] px-4 py-10">
-      <div className="w-full max-w-md rounded-2xl border bg-white p-6 shadow-sm">
-        <span className="mb-3 inline-flex size-16 overflow-hidden">
-          <img src="/logo.jpg" alt={APP_NAME} className="size-16 scale-[1.7] object-cover" />
-        </span>
+    <div className="flex min-h-screen items-center justify-center bg-white px-4 py-10">
+      <div className="w-full max-w-md rounded-2xl border bg-white p-7 shadow-sm">
+        <p className="mb-3 text-3xl font-extrabold tracking-tight text-foreground">
+          <span className="text-primary">Zhol</span>Build
+        </p>
         <p className="mb-6 text-muted-foreground">Создание аккаунта</p>
         <form onSubmit={(event) => void submit(event)} className="space-y-4">
           <div className="grid gap-2">
             <Label htmlFor="name">Имя</Label>
-            <Input id="name" value={name} onChange={(event) => setName(event.target.value)} required placeholder="Иван" />
+            <Input id="name" value={name} onChange={(event) => setName(event.target.value)} required placeholder="Иван" className="bg-white" />
           </div>
           <div className="grid gap-2">
             <Label htmlFor="login">Логин или email</Label>
@@ -61,6 +60,7 @@ export default function RegisterPage() {
               onChange={(event) => setLogin(event.target.value)}
               required
               placeholder="stroitel1 или почта"
+              className="bg-white"
             />
           </div>
           <div className="grid gap-2">
@@ -72,6 +72,7 @@ export default function RegisterPage() {
               onChange={(event) => setPassword(event.target.value)}
               required
               minLength={6}
+              className="bg-white"
             />
           </div>
           <Button type="submit" className="h-11 w-full" disabled={loading}>

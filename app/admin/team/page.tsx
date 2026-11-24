@@ -24,11 +24,11 @@ export default function TeamPage() {
       </div>
       <div className="overflow-hidden rounded-xl border bg-white">
         <table className="w-full text-sm">
-          <thead className="bg-muted/60 text-left">
+          <thead className="bg-muted text-left text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">
             <tr>
-              <th className="px-4 py-3 font-medium">Имя</th>
-              <th className="px-4 py-3 font-medium">Логин</th>
-              <th className="px-4 py-3 font-medium">Роль</th>
+              <th className="px-4 py-3">Имя</th>
+              <th className="px-4 py-3">Логин</th>
+              <th className="px-4 py-3">Роль</th>
             </tr>
           </thead>
           <tbody>

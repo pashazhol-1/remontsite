@@ -66,5 +66,40 @@ export function notificationText(
       return { title: "Строитель не подтвердил оплату", body: summary };
     case "payment_cancelled":
       return { title: "Заказчик отменил отметку об оплате", body: summary };
+    default:
+      return { title: "Уведомление", body: summary };
+  }
+}
+
+export function builderMayDeleteWork(work: { progress: "planned" | "done"; status: ReceiptStatus }) {
+  return work.progress === "planned" && work.status === "unpaid";
+}
+
+export function workSummary(work: { title: string; totalAmount: number | null; currency: string }) {
+  return `${work.title}, ${formatMoney(work.totalAmount, work.currency)}`;
+}
+
+export function workNotificationText(
+  kind: NotificationKind,
+  work: { title: string; totalAmount: number | null; currency: string },
+) {
+  const summary = workSummary(work);
+  switch (kind) {
+    case "work_created":
+      return { title: "Новая работа", body: summary };
+    case "work_completed":
+      return { title: "Работа выполнена", body: summary };
+    case "work_assigned":
+      return { title: "Вам назначили работу", body: summary };
+    case "payment_requested":
+      return { title: "Подтвердите оплату", body: `Вы получили деньги за работу ${summary}?` };
+    case "payment_confirmed":
+      return { title: "Оплата подтверждена", body: summary };
+    case "payment_rejected":
+      return { title: "Строитель не подтвердил оплату", body: summary };
+    case "payment_cancelled":
+      return { title: "Заказчик отменил отметку об оплате", body: summary };
+    default:
+      return { title: "Работа", body: summary };
   }
 }
