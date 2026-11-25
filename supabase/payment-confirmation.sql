@@ -100,6 +100,10 @@ drop policy if exists "notifications_update_own" on public.notifications;
 create policy "notifications_update_own" on public.notifications
   for update using (user_id = auth.uid()) with check (user_id = auth.uid());
 
+drop policy if exists "notifications_delete_own" on public.notifications;
+create policy "notifications_delete_own" on public.notifications
+  for delete using (user_id = auth.uid());
+
 create or replace function public.notify_receipt_event(target_receipt uuid, event_kind text)
 returns void
 language plpgsql

@@ -344,6 +344,10 @@ drop policy if exists "notifications_update_own" on public.notifications;
 create policy "notifications_update_own" on public.notifications
   for update using (user_id = auth.uid()) with check (user_id = auth.uid());
 
+drop policy if exists "notifications_delete_own" on public.notifications;
+create policy "notifications_delete_own" on public.notifications
+  for delete using (user_id = auth.uid());
+
 drop policy if exists "ai_processing_admin" on public.ai_processing;
 create policy "ai_processing_admin" on public.ai_processing
   for all using (public.is_admin()) with check (public.is_admin());

@@ -213,7 +213,12 @@ drop policy if exists "receipts_insert_own" on public.receipts;
 create policy "receipts_insert_own" on public.receipts
   for insert with check (user_id = auth.uid());
 
+drop policy if exists "notifications_delete_own" on public.notifications;
+create policy "notifications_delete_own" on public.notifications
+  for delete using (user_id = auth.uid());
+
 revoke all on function public.notify_work_event(uuid, text) from public;
 grant execute on function public.notify_work_event(uuid, text) to authenticated;
+grant select, update, delete on public.notifications to authenticated;
 grant select, insert, update, delete on public.works to authenticated;
 grant select, insert, delete on public.work_images to authenticated;

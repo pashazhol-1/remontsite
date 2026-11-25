@@ -36,4 +36,5 @@ export type AppRepository = {
   listNotifications: () => Promise<AppNotification[]>;
   markNotificationRead: (id: string) => Promise<void>;
   markAllNotificationsRead: () => Promise<void>;
+  deleteNotification: (id: string) => Promise<void>;
 };

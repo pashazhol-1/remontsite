@@ -481,6 +481,15 @@ export function createDemoRepository(): AppRepository {
         items.map((item) => (item.userId === session?.id && !item.readAt ? { ...item, readAt: now } : item)),
       );
     },
+    async deleteNotification(id) {
+      const session = await this.getSession();
+      if (!session) throw new Error("Нужно войти в систему");
+      const items = readJson<AppNotification[]>(KEYS.notifications, []);
+      writeJson(
+        KEYS.notifications,
+        items.filter((item) => item.id !== id || item.userId !== session.id),
+      );
+    },
     async deleteReceipt(id) {
       const session = await this.getSession();
       if (!session) throw new Error("Нужно войти в систему");

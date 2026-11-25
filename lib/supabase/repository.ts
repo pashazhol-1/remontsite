@@ -674,6 +674,19 @@ export function createSupabaseRepository(): AppRepository {
         .is("read_at", null);
       if (error) throw new Error(error.message);
     },
+    async deleteNotification(id) {
+      const { data, error } = await client.from("notifications").delete().eq("id", id).select("id");
+      const blocked =
+        error?.message?.toLowerCase().includes("row-level security") ||
+        error?.code === "42501" ||
+        (!error && (data ?? []).length === 0);
+      if (blocked) {
+        throw new Error(
+          "База ещё не разрешает удалять уведомления. В Supabase откройте SQL Editor и ещё раз выполните файл supabase/works.sql.",
+        );
+      }
+      if (error) throw new Error(error.message || "Не удалось удалить уведомление");
+    },
     async deleteReceipt(id) {
       const session = await this.getSession();
       if (!session) throw new Error("Нужно войти в систему");
