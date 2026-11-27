@@ -50,7 +50,7 @@ export function AppHeader() {
               <Link
                 key={link.href}
                 href={link.href}
-                className={`rounded-lg px-3 py-1.5 text-sm ${
+                className={`rounded-md px-3 py-1.5 text-sm ${
                   active ? "bg-accent font-medium text-accent-foreground" : "text-muted-foreground hover:bg-muted hover:text-foreground"
                 }`}
               >
@@ -89,7 +89,7 @@ export function AppHeader() {
             <Link
               key={link.href}
               href={link.href}
-              className={`rounded-lg px-3 py-1 text-sm whitespace-nowrap ${
+              className={`rounded-md px-3 py-1 text-sm whitespace-nowrap ${
                 active ? "bg-accent font-medium text-accent-foreground" : "bg-muted text-muted-foreground"
               }`}
             >

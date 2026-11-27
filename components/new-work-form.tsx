@@ -101,7 +101,7 @@ export function NewWorkForm({
                 const nextMasters = masters.filter((master) => category.assigneeIds.length === 0 || category.assigneeIds.includes(master.id));
                 setUserId(nextMasters[0]?.id ?? "");
               }}
-              className={`rounded-xl border bg-white px-3 py-3 text-left text-sm ${
+              className={`rounded-lg border bg-white px-3 py-3 text-left text-sm ${
                 category.id === categoryId ? "border-primary bg-accent font-medium text-accent-foreground" : "hover:bg-muted"
               }`}
             >
@@ -113,7 +113,7 @@ export function NewWorkForm({
       {masters.length > 0 ? (
         <div className="grid gap-2">
           <Label htmlFor="work-master">Мастер</Label>
-          <select id="work-master" className="h-9 rounded-xl border bg-white px-3 text-sm" value={userId} onChange={(event) => setUserId(event.target.value)}>
+          <select id="work-master" className="h-9 rounded-md border bg-white px-3 text-sm" value={userId} onChange={(event) => setUserId(event.target.value)}>
             {allowedMasters.map((master) => (
               <option key={master.id} value={master.id}>{master.name}</option>
             ))}

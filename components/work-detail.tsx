@@ -73,7 +73,7 @@ export function WorkDetail({
       {work.images.length > 0 ? (
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           {work.images.map((image) => (
-            <a key={image.id} href={image.url} target="_blank" rel="noreferrer" className="overflow-hidden rounded-xl border bg-white">
+            <a key={image.id} href={image.url} target="_blank" rel="noreferrer" className="overflow-hidden rounded-lg border bg-white">
               <img src={image.url} alt="" className="aspect-[3/4] w-full object-cover" />
             </a>
           ))}
@@ -82,7 +82,7 @@ export function WorkDetail({
         <p className="text-sm text-muted-foreground">Фотоотчёта пока нет.</p>
       )}
       {isOwner && work.status !== "paid" ? (
-        <div className="space-y-3 rounded-xl border bg-white p-4">
+        <div className="space-y-3 rounded-lg border bg-white p-4">
           <p className="text-sm font-medium">Добавить фото</p>
           <PhotoPicker files={photos} onChange={setPhotos} />
           {photos.length > 0 ? (

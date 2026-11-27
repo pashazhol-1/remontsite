@@ -22,7 +22,7 @@ export default function TeamPage() {
           придумывают логин и пароль на странице регистрации или входят через Google.
         </p>
       </div>
-      <div className="overflow-hidden rounded-xl border bg-white">
+      <div className="overflow-hidden rounded-lg border bg-white">
         <table className="w-full text-sm">
           <thead className="bg-muted text-left text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">
             <tr>

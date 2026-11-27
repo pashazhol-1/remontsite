@@ -14,7 +14,7 @@ import type {
 export type AppRepository = {
   getSession: () => Promise<Profile | null>;
   signIn: (login: string, password: string) => Promise<Profile>;
-  signUp: (name: string, login: string, password: string) => Promise<Profile>;
+  signUp: (name: string, login: string, password: string, role: Profile["role"]) => Promise<Profile>;
   signInWithGoogle: () => Promise<void>;
   signOut: () => Promise<void>;
   onAuthChange: (callback: (profile: Profile | null) => void) => () => void;

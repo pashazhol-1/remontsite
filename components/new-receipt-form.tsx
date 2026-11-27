@@ -73,7 +73,7 @@ export function NewReceiptForm({
                 key={category.id}
                 type="button"
                 onClick={() => setCategoryId(category.id)}
-                className={`rounded-xl border bg-white px-3 py-3 text-left text-sm ${
+                className={`rounded-lg border bg-white px-3 py-3 text-left text-sm ${
                   selected ? "border-primary bg-accent font-medium text-accent-foreground" : "hover:bg-muted"
                 }`}
               >

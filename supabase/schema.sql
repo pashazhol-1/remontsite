@@ -91,8 +91,12 @@ as $$
 declare
   assigned_role text;
   display_name text;
+  requested text;
 begin
-  if exists (select 1 from public.profiles where role = 'admin') then
+  requested := new.raw_user_meta_data->>'role';
+  if requested in ('admin', 'builder') then
+    assigned_role := requested;
+  elsif exists (select 1 from public.profiles where role = 'admin') then
     assigned_role := 'builder';
   else
     assigned_role := 'admin';

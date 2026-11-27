@@ -86,12 +86,12 @@ export default function AnalyticsPage() {
         <StatCard label="Не оплачено" value={formatMoney(moneyOf(visible, "unpaid"))} />
       </div>
 
-      <section className="space-y-3 rounded-xl border bg-white p-4">
+      <section className="space-y-3 rounded-lg border bg-white p-4">
         <h2 className="font-medium">Оплачено и не оплачено</h2>
         <StatusBar receipts={visible} />
       </section>
 
-      <section className="space-y-3 rounded-xl border bg-white p-4">
+      <section className="space-y-3 rounded-lg border bg-white p-4">
         <h2 className="font-medium">Расходы по месяцам</h2>
         {months.length === 0 ? <p className="text-sm text-muted-foreground">За этот период чеков нет.</p> : null}
         {months.map((month) => (
@@ -99,7 +99,7 @@ export default function AnalyticsPage() {
         ))}
       </section>
 
-      <section className="space-y-3 rounded-xl border bg-white p-4">
+      <section className="space-y-3 rounded-lg border bg-white p-4">
         <h2 className="font-medium">Расходы по видам работ</h2>
         {categories.length === 0 ? <p className="text-sm text-muted-foreground">За этот период чеков нет.</p> : null}
         {categories.map((category) => (

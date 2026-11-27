@@ -22,7 +22,7 @@ export function PeriodFilter({
   const select = (
     <select
       aria-label="Период"
-      className={compact ? "h-8 w-full rounded-lg border bg-white pr-2 pl-8 text-sm" : "h-10 rounded-lg border bg-white px-3"}
+      className={compact ? "h-8 w-full rounded-md border bg-white pr-2 pl-8 text-sm" : "h-10 rounded-md border bg-white px-3"}
       value={value.preset}
       onChange={(event) => onChange({ ...value, preset: event.target.value as PeriodPreset })}
     >
@@ -53,14 +53,14 @@ export function PeriodFilter({
             <input
               type="date"
               aria-label="С"
-              className="h-8 rounded-lg border bg-white px-2 text-sm"
+              className="h-8 rounded-md border bg-white px-2 text-sm"
               value={value.from}
               onChange={(event) => onChange({ ...value, from: event.target.value })}
             />
             <input
               type="date"
               aria-label="По"
-              className="h-8 rounded-lg border bg-white px-2 text-sm"
+              className="h-8 rounded-md border bg-white px-2 text-sm"
               value={value.to}
               onChange={(event) => onChange({ ...value, to: event.target.value })}
             />
@@ -71,7 +71,7 @@ export function PeriodFilter({
             <span className="text-muted-foreground">С</span>
             <input
               type="date"
-              className="h-10 rounded-lg border bg-white px-3"
+              className="h-10 rounded-md border bg-white px-3"
               value={value.from}
               onChange={(event) => onChange({ ...value, from: event.target.value })}
             />
@@ -80,7 +80,7 @@ export function PeriodFilter({
             <span className="text-muted-foreground">По</span>
             <input
               type="date"
-              className="h-10 rounded-lg border bg-white px-3"
+              className="h-10 rounded-md border bg-white px-3"
               value={value.to}
               onChange={(event) => onChange({ ...value, to: event.target.value })}
             />

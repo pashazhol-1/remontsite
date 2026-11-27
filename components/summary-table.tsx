@@ -145,9 +145,9 @@ export function SummaryTable({
         ) : null}
       </div>
       {rows.length === 0 ? (
-        <div className="rounded-xl border border-dashed bg-white p-8 text-center text-muted-foreground">Пока ничего нет</div>
+        <div className="rounded-lg border border-dashed bg-white p-8 text-center text-muted-foreground">Пока ничего нет</div>
       ) : (
-        <div className="overflow-hidden rounded-xl border bg-white">
+        <div className="overflow-hidden rounded-lg border bg-white">
           <table className="w-full text-sm">
             <thead className="bg-muted text-left text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">
               <tr>
@@ -234,7 +234,7 @@ function FilterSelect({
   return (
     <label className="relative block w-44 shrink-0">
       <Icon className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
-      <select aria-label={label} className="h-9 w-full rounded-xl border bg-white pr-2 pl-8 text-sm" value={value} onChange={(event) => onChange(event.target.value)}>
+      <select aria-label={label} className="h-9 w-full rounded-md border bg-white pr-2 pl-8 text-sm" value={value} onChange={(event) => onChange(event.target.value)}>
         {children}
       </select>
     </label>

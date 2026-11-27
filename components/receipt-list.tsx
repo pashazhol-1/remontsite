@@ -114,14 +114,14 @@ export function ReceiptList({
         ) : null}
       </div>
       {filtered.length === 0 ? (
-        <div className="rounded-xl border border-dashed p-8 text-center text-muted-foreground">
+        <div className="rounded-lg border border-dashed p-8 text-center text-muted-foreground">
           Чеков пока нет
         </div>
       ) : (
         <>
           <div className="space-y-3 md:hidden">
             {filtered.map((receipt) => (
-              <div key={receipt.id} className="rounded-xl border bg-card p-4">
+              <div key={receipt.id} className="rounded-lg border bg-card p-4">
                 <div className="flex items-start justify-between gap-2">
                   <Link href={hrefFor(receipt)} className="min-w-0">
                     <div className="font-medium">{receipt.storeName || "Магазин не указан"}</div>
@@ -150,7 +150,7 @@ export function ReceiptList({
               </div>
             ))}
           </div>
-          <div className="hidden overflow-hidden rounded-xl border bg-white md:block">
+          <div className="hidden overflow-hidden rounded-lg border bg-white md:block">
             <table className="w-full text-sm">
               <thead className="bg-muted text-left text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">
                 <tr>
@@ -242,7 +242,7 @@ function IconSelect({
       <Icon className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
       <select
         aria-label={label}
-        className="h-9 w-full rounded-xl border bg-white pr-2 pl-8 text-sm"
+        className="h-9 w-full rounded-md border bg-white pr-2 pl-8 text-sm"
         value={value}
         onChange={(event) => onChange(event.target.value)}
       >

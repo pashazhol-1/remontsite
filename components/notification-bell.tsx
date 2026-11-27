@@ -110,7 +110,7 @@ export function NotificationBell() {
         <div className="flex-1 space-y-2 overflow-y-auto px-4 pb-4">
           {unreadItems.length === 0 ? <p className="text-sm text-muted-foreground">Здесь появятся новые чеки, работы и оплаты.</p> : null}
           {unreadItems.map((item) => (
-            <div key={item.id} className="rounded-xl border bg-emerald-50 p-3">
+            <div key={item.id} className="rounded-lg border bg-emerald-50 p-3">
               <div className="flex items-start gap-2">
                 <button type="button" className="min-w-0 flex-1 text-left" onClick={() => void openReceipt(item)}>
                   <div className="font-medium">{item.title}</div>

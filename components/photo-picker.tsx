@@ -83,7 +83,7 @@ export function PhotoPicker({
       {files.length > 0 ? (
         <div className="grid grid-cols-3 gap-2">
           {files.map((file, index) => (
-            <div key={`${file.name}-${index}`} className="relative aspect-[3/4] overflow-hidden rounded-xl border bg-muted">
+            <div key={`${file.name}-${index}`} className="relative aspect-[3/4] overflow-hidden rounded-lg border bg-muted">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={URL.createObjectURL(file)}

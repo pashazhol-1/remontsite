@@ -106,7 +106,7 @@ export default function CategoriesPage() {
             );
             const masterNames = masters.filter((master) => category.assigneeIds.includes(master.id)).map((master) => master.name);
             return (
-            <div key={category.id} className="flex flex-col gap-3 rounded-xl border bg-white p-4 sm:flex-row sm:items-center sm:justify-between">
+            <div key={category.id} className="flex flex-col gap-3 rounded-lg border bg-white p-4 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <div className="font-medium">{category.name}</div>
                 <div className="text-sm text-muted-foreground">
@@ -153,7 +153,7 @@ export default function CategoriesPage() {
           })}
         </div>
       </div>
-      <form onSubmit={(event) => void save(event)} className="h-fit space-y-4 rounded-xl border bg-white p-4">
+      <form onSubmit={(event) => void save(event)} className="h-fit space-y-4 rounded-lg border bg-white p-4">
         <h2 className="font-medium">{editing ? "Редактирование" : "Новый вид работ"}</h2>
         <div className="grid gap-2">
           <Label htmlFor="cat-name">Название</Label>

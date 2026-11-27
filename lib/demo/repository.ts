@@ -104,7 +104,7 @@ export function createDemoRepository(): AppRepository {
       emit(profile);
       return profile;
     },
-    async signUp(name, login, password) {
+    async signUp(name, login, password, role) {
       ensureSeed();
       const users = readJson<StoredUser[]>(KEYS.users, demoUsers);
       const email = toAuthEmail(login);
@@ -114,13 +114,12 @@ export function createDemoRepository(): AppRepository {
           item.email.toLowerCase() === email,
       );
       if (exists) throw new Error("Такой логин уже занят");
-      const hasAdmin = users.some((item) => item.role === "admin");
       const user: StoredUser = {
         id: crypto.randomUUID(),
         name: name.trim(),
         email,
         login: login.trim().toLowerCase(),
-        role: hasAdmin ? "builder" : "admin",
+        role,
         createdAt: new Date().toISOString(),
         password,
       };

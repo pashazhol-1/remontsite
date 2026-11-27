@@ -114,7 +114,7 @@ export function VoiceRecorder({
   }
 
   return (
-    <div className="space-y-3 rounded-xl border p-3">
+    <div className="space-y-3 rounded-lg border p-3">
       <div className="flex items-center justify-between gap-2">
         <div>
           <div className="text-sm font-medium">Голосовой комментарий</div>

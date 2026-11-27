@@ -288,13 +288,13 @@ export function createSupabaseRepository(): AppRepository {
       if (!profile) throw new Error("Профиль не найден. Проверьте, что SQL из supabase/schema.sql выполнен.");
       return profile;
     },
-    async signUp(name, login, password) {
+    async signUp(name, login, password, role) {
       const email = toAuthEmail(login);
       const { data, error } = await client.auth.signUp({
         email,
         password,
         options: {
-          data: { name, login: login.trim().toLowerCase() },
+          data: { name, login: login.trim().toLowerCase(), role },
         },
       });
       if (error) throw new Error(error.message);

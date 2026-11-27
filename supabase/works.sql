@@ -222,3 +222,36 @@ grant execute on function public.notify_work_event(uuid, text) to authenticated;
 grant select, update, delete on public.notifications to authenticated;
 grant select, insert, update, delete on public.works to authenticated;
 grant select, insert, delete on public.work_images to authenticated;
+
+-- Роль при регистрации берётся из выбранного входа: заказчик или строитель.
+create or replace function public.handle_new_user()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  assigned_role text;
+  display_name text;
+  requested text;
+begin
+  requested := new.raw_user_meta_data->>'role';
+  if requested in ('admin', 'builder') then
+    assigned_role := requested;
+  elsif exists (select 1 from public.profiles where role = 'admin') then
+    assigned_role := 'builder';
+  else
+    assigned_role := 'admin';
+  end if;
+
+  display_name := coalesce(
+    new.raw_user_meta_data->>'name',
+    new.raw_user_meta_data->>'full_name',
+    split_part(new.email, '@', 1)
+  );
+
+  insert into public.profiles (id, name, email, role)
+  values (new.id, display_name, new.email, assigned_role);
+  return new;
+end;
+$$;

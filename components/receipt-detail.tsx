@@ -253,7 +253,7 @@ export function ReceiptDetail({
         </p>
       ) : null}
       {!canEdit && receipt.status === "awaiting_confirmation" ? (
-        <div className="rounded-xl border bg-white p-4">
+        <div className="rounded-lg border bg-white p-4">
           <p className="font-medium">Заказчик отметил этот чек оплаченным.</p>
           <p className="mt-1 text-sm text-muted-foreground">Вы получили эти деньги?</p>
           <div className="mt-3 flex flex-wrap gap-2">
@@ -268,17 +268,17 @@ export function ReceiptDetail({
       ) : null}
 
       {!receipt.recognition && receipt.status === "pending_review" ? (
-        <p className="rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-950">
+        <p className="rounded-lg border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-950">
           Фото ещё читается. Магазин, товары и сумма появятся сами.
         </p>
       ) : null}
       {receipt.recognition?.provider === "demo" ? (
-        <p className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+        <p className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
           Это учебная расшифровка, не текст с фотографии. Настоящее чтение включится после бесплатного ключа OpenRouter.
         </p>
       ) : null}
       {receipt.recognition?.needsReview ? (
-        <p className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+        <p className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
           Нужна проверка{receipt.recognition.reviewReason ? `: ${receipt.recognition.reviewReason}` : ""}.
           {receipt.recognition.confidence != null
             ? ` Уверенность ${Math.round(receipt.recognition.confidence * 100)}%.`
@@ -288,7 +288,7 @@ export function ReceiptDetail({
 
       <div className="grid gap-3 sm:grid-cols-2">
         {receipt.images.map((image) => (
-          <a key={image.id} href={image.url} target="_blank" rel="noreferrer" className="overflow-hidden rounded-xl border">
+          <a key={image.id} href={image.url} target="_blank" rel="noreferrer" className="overflow-hidden rounded-lg border">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={image.url} alt="Фото чека" className="h-72 w-full object-cover" />
           </a>
@@ -296,7 +296,7 @@ export function ReceiptDetail({
       </div>
 
       {canEdit ? (
-        <div className="grid gap-4 rounded-xl border bg-white p-4">
+        <div className="grid gap-4 rounded-lg border bg-white p-4">
           <div className="grid gap-2">
             <Label htmlFor="store">Магазин</Label>
             <Input id="store" value={form.storeName} onChange={(event) => setForm({ ...form, storeName: event.target.value })} />
@@ -324,7 +324,7 @@ export function ReceiptDetail({
               <Label htmlFor="category">Вид работ</Label>
               <select
                 id="category"
-                className="h-8 rounded-lg border bg-background px-2.5 text-sm"
+                className="h-8 rounded-md border bg-background px-2.5 text-sm"
                 value={form.categoryId}
                 onChange={(event) => setForm({ ...form, categoryId: event.target.value })}
               >
@@ -399,7 +399,7 @@ export function ReceiptDetail({
             )}
             {shownItems.map((item) =>
               canEdit ? (
-                <div key={item.id} className="grid gap-2 rounded-xl border bg-white p-3 sm:grid-cols-12">
+                <div key={item.id} className="grid gap-2 rounded-lg border bg-white p-3 sm:grid-cols-12">
                   <label className="grid gap-1 sm:col-span-5">
                     <span className="text-xs text-muted-foreground sm:sr-only">Наименование</span>
                     <Input value={item.name} aria-label="Наименование" onChange={(event) => updateItem(item.id, { name: event.target.value })} />
@@ -425,7 +425,7 @@ export function ReceiptDetail({
                   </Button>
                 </div>
               ) : (
-                <div key={item.id} className="grid grid-cols-4 gap-2 rounded-xl border bg-white px-4 py-3 text-sm">
+                <div key={item.id} className="grid grid-cols-4 gap-2 rounded-lg border bg-white px-4 py-3 text-sm">
                   <span className="col-span-4 font-medium sm:col-span-1">{item.name}</span>
                   <span>{item.quantity}</span>
                   <span>{formatMoney(item.unitPrice, receipt.currency)}</span>
